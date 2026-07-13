@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/*
+ * Solar Design System tokens (Tailwind v4 @theme).
+ * NOTE: Tailwind v4 defines tokens in CSS (not tailwind.config.ts) — this is the
+ * v4-idiomatic equivalent of the design-tokens steering note.
+ * Brand anchors (aster-teal-500 / aster-sky-500) are confirmed from the token
+ * screenshots; other shades are approximate placeholders pending the Solar token
+ * export. Token NAMES are stable — only hex values may be refined later.
+ */
+@theme {
+  /* Fonts */
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+
+  /* Base */
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* Grey (neutral surfaces & text) */
+  --color-grey-50: #f7f8f9;
+  --color-grey-100: #eef0f2;
+  --color-grey-200: #dde1e6;
+  --color-grey-300: #c3c9d0;
+  --color-grey-400: #99a2ad;
+  --color-grey-500: #6b7683;
+  --color-grey-600: #4e5761;
+  --color-grey-700: #3a424b;
+  --color-grey-800: #262b31;
+  --color-grey-900: #171a1e;
+  --color-grey-950: #0d0f12;
+
+  /* Aster Teal (brand / primary) — 500 confirmed */
+  --color-aster-teal-50: #ecfbf6;
+  --color-aster-teal-100: #d0f5ea;
+  --color-aster-teal-200: #a3ead6;
+  --color-aster-teal-300: #6bdcbf;
+  --color-aster-teal-400: #47d4b4;
+  --color-aster-teal-500: #33ccad;
+  --color-aster-teal-600: #26a88c;
+  --color-aster-teal-700: #1f8571;
+  --color-aster-teal-800: #1a6b5c;
+  --color-aster-teal-900: #14453d;
+  --color-aster-teal-950: #0a2924;
+
+  /* Aster Sky (brand / accent) — 500 confirmed */
+  --color-aster-sky-50: #eaf6fb;
+  --color-aster-sky-100: #cdeaf6;
+  --color-aster-sky-200: #9dd6ee;
+  --color-aster-sky-300: #66bfe2;
+  --color-aster-sky-400: #47b2da;
+  --color-aster-sky-500: #33a1cc;
+  --color-aster-sky-600: #2682a8;
+  --color-aster-sky-700: #1f6785;
+  --color-aster-sky-800: #1a536b;
+  --color-aster-sky-900: #123a4a;
+  --color-aster-sky-950: #0a2530;
+
+  /* Semantic families (500 anchors; extend from export as needed) */
+  --color-aster-purple-500: #7c4dff;
+  --color-aster-orange-500: #ff5a1f;
+  --color-green-500: #22c55e;
+  --color-blue-500: #3b82f6;
+  --color-yellow-500: #eab308;
+  --color-red-500: #ef4444;
+
+  /* Type scale */
+  --text-display-lg: 3.875rem;
+  --text-display-lg--line-height: 4.5rem;
+  --text-display-md: 3rem;
+  --text-display-md--line-height: 3.625rem;
+  --text-display-sm: 2.5rem;
+  --text-display-sm--line-height: 3rem;
+  --text-heading-lg: 2rem;
+  --text-heading-lg--line-height: 2.5rem;
+  --text-heading-md: 1.5rem;
+  --text-heading-md--line-height: 2rem;
+  --text-heading-sm: 1.25rem;
+  --text-heading-sm--line-height: 1.75rem;
+  --text-text-lg: 1.125rem;
+  --text-text-lg--line-height: 1.75rem;
+  --text-text-md: 1rem;
+  --text-text-md--line-height: 1.5rem;
+  --text-text-sm: 0.875rem;
+  --text-text-sm--line-height: 1.25rem;
+}
+
+/* Gradient utilities (brand + grey) with angle variants.
+   Alpha ramps (e.g. white/8, black/40, aster-teal-500/16) use Tailwind's
+   built-in `/<opacity>` color modifier — no extra tokens needed. */
+@layer utilities {
+  .bg-brand-gradient {
+    background-image: linear-gradient(90deg, var(--color-aster-teal-500), var(--color-aster-sky-500));
+  }
+  .bg-brand-gradient-45 {
+    background-image: linear-gradient(45deg, var(--color-aster-teal-500), var(--color-aster-sky-500));
+  }
+  .bg-brand-gradient-180 {
+    background-image: linear-gradient(180deg, var(--color-aster-teal-500), var(--color-aster-sky-500));
+  }
+  .bg-grey-gradient {
+    background-image: linear-gradient(90deg, var(--color-grey-800), var(--color-grey-600));
+  }
+  .bg-grey-gradient-45 {
+    background-image: linear-gradient(45deg, var(--color-grey-800), var(--color-grey-600));
+  }
+  .bg-grey-gradient-180 {
+    background-image: linear-gradient(180deg, var(--color-grey-800), var(--color-grey-600));
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-grey-950);
+  color: var(--color-grey-50);
+  font-family: var(--font-sans);
+}

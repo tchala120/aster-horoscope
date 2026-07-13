@@ -1,0 +1,186 @@
+version: "2.2"
+feature: "tarot-mission"
+language: "en"
+platform: "kiro"
+created: "2026-07-13T00:00:00Z"
+updated: "2026-07-13T00:00:00Z"
+state:
+  status: "active"
+  sharedPhases: ["context", "requirements", "decomposition", "foundation"]
+  mode: "incremental"
+  foundationSkipped: false
+  implementationMode: null
+  quickPath: false
+artifacts:
+  context:
+    status: "approved"
+    timestamp: "2026-07-13T00:00:00Z"
+    files: [context.md]
+  requirements:
+    status: "approved"
+    timestamp: "2026-07-13T00:00:00Z"
+    files: [requirements.md, decisions-requirements.md]
+  decomposition:
+    status: "approved"
+    timestamp: "2026-07-13T00:00:00Z"
+    files: [units.md, decisions-units.md]
+  foundation:
+    status: "approved"
+    timestamp: "2026-07-13T00:00:00Z"
+    files: [foundation.md, decisions-foundation.md]
+implementation:
+  totalTasks: 0
+  completedTasks: 0
+  currentTask: null
+  currentWave: null
+context-summary:
+  type: "Greenfield"
+  stack: "Next.js (App Router) fullstack, TypeScript, Tailwind, Prisma + PostgreSQL, bun"
+  architecture: "Fullstack Next.js single app; in-process FE units + server route handlers + Postgres"
+  feature: "Daily tarot card pick that assigns difficulty-tiered horoscope missions with rewards and sharing."
+  impact: "New standalone"
+  complexity: "Medium"
+  teamSize: "small (2-3)"
+  recommendations: { personas: false, units: false, nfr: true }
+decisions:
+  requirements:
+    mvpScope: "Core loop + sharing; probabilistic random reward (gain/no gain)"
+    identity: "Guest or authenticated; localStorage-first for all, authenticated users sync full state to API (API source of truth)"
+    missionCatalog: "Static curated catalog"
+    completionVerification: "Self-attested"
+    drawRules: "One draw/day; reject re-picks same spread; no new spread until next day"
+    activeMissionLimit: "One active mission at a time"
+    missionExpiry: "Expires, no reward, draw again next day"
+    rewardModel: "Display existing reward types (Token, Badge/Discount, Asset, NFT, Physical coupon); external minting/fulfillment out of scope"
+    rewardScaling: "Random, independent of difficulty"
+    sharing: "Shareable link/image + native share; bonus on share action"
+    antiAbuse: "Server-authoritative daily state + share caps (once/day)"
+    personas: false
+    teamSize: "small (2-3)"
+  foundation:
+    stack: "Next.js (App Router) fullstack, TypeScript, Tailwind, Prisma + PostgreSQL, bun"
+    auth: "Username/password (credentials, argon2/bcrypt); optional login, guest preserved"
+    repo: "Single repo, single Next.js app; src/shared contracts"
+    stateModel: "React Context + versioned localStorage service; localStorage-first, API source of truth for authenticated"
+    hosting: "Vercel (single deployment)"
+    database: "PostgreSQL (Prisma), single schema owned by server layer"
+    infraUnits: "Server (API & Auth) inside the Next.js app"
+    sharedLevel: "Comprehensive"
+    scopeChange: "DF-R1 Yes — full-stack MVP, US-017 un-deferred"
+  decomposition:
+    architecture: "Modular Monolith"
+    strategy: "Domain-Driven"
+    units: 4
+    sharedKernel: "Foundation module (types, localStorage state layer, catalog/deck/reward data, responsive UI shell)"
+    interaction: "In-process over shared state module"
+    sequence: "Foundation -> U1 -> U2 -> U3 -> U4"
+    sharingTiming: "U4 deferred post-MVP"
+steering:
+  updatedBy:
+    product: [context, requirements]
+    tech: [context, foundation, design]
+    structure: [context, foundation, design]
+    design-tokens: [design]
+units:
+  - name: "server"
+    title: "Server (API & Auth)"
+    type: "infrastructure"
+    source: "foundation"
+    stories: [US-001, US-002, US-017]
+    dependsOn: [foundation]
+    mvp: true
+    status: "completed"
+    phase: "implement"
+    note: "Implemented: username/password auth (scrypt + cookie session), /api/v1 route handlers (auth, sessions/me, draws, missions pick+accept+reject+complete), repository interfaces + in-memory impls, services reusing pure core. PERSISTENCE IS IN-MEMORY (process-scoped) — Prisma/PostgreSQL adapter is the durable follow-up (needs a provisioned DB). Verified: tsc+lint+build+service tests green."
+    implementation:
+      verification: "service + auth unit tests pass; next build compiles all route handlers"
+      pending: "Prisma/Postgres repository adapter (durable persistence); HTTP-level integration/e2e not run"
+  - name: "foundation"
+    title: "Foundation (Shared Kernel)"
+    type: "infrastructure"
+    source: "foundation"
+    dependsOn: []
+    mvp: true
+    status: "completed"
+    phase: "implement"
+    completedPhases: [tasks, implement]
+    note: "Design = foundation.md. Built before U1. Verified: tsc clean, 9/9 tests, eslint clean, next build ok, boundary rule proven."
+    implementation:
+      totalTasks: 19
+      completedTasks: 19
+      stack: "Next.js 16.2.10, React 19.2.4, Tailwind v4, ESLint 9, bun"
+      verification: "typecheck+lint+test+build all pass"
+    artifacts:
+      tasks:
+        status: "approved"
+        timestamp: "2026-07-13T00:00:00Z"
+        files: [units/foundation/tasks.md]
+        totalTasks: 19
+  - name: "U1"
+    title: "Session & Daily Draw"
+    stories: [US-001, US-002, US-003, US-004, US-005]
+    dependsOn: [foundation]
+    mvp: true
+    status: "completed"
+    phase: "implement"
+    note: "Implemented, then REFACTORED off localStorage onto the server API (pivot). Client now uses game-context (API-backed) + AuthPanel; localStorage store/sync-client removed. Pure core (draw-service, daily-state) retained and reused server-side. Verified green."
+    completedPhases: [design, tasks, implement]
+    implementation:
+      totalTasks: 22
+      completedTasks: 22
+      verification: "lint clean, tsc clean, tests pass, next build ok"
+      pivot: "localStorage removed; state is server-authoritative via /api/v1; login required (supersedes guest model)"
+    decisions:
+      design:
+        deckScope: "Major Arcana (22 cards)"
+        randomization: "Guest crypto.getRandomValues; authenticated server-side"
+        resetBoundary: "App-wide fixed timezone (default UTC)"
+        storageVersioning: "Versioned + migration functions"
+        guestAuthMerge: "Server source of truth; adopt local once if server empty"
+        offlineDraw: "Skipped (authenticated draw assumes online)"
+        contextStructure: "Multiple small on-demand contexts/hooks"
+        spreadShape: "Card IDs + pick/reject flags"
+        correctnessPBT: "fast-check PBT + example-based tests"
+        designSystem: "Solar Design System tokens"
+        animation: "Framer Motion; shuffle->fan->hover->pick + idle glow; arcanamana-inspired style; prefers-reduced-motion honored; shared motion tokens in foundation for U3 flip"
+      tasks:
+        breakdown: "By layer (foundation -> pure core -> adapter/hooks -> UI/animation -> tests)"
+        approach: "Test-alongside; TDD for pure core + PBT"
+        buildOrder: "Guest flow first, then authenticated sync (mocked SyncClient)"
+        serverIntegration: "Typed mock SyncClient against src/shared; real API when Server unit lands"
+        testingScope: "Unit + PBT + RTL component + 1 Playwright e2e"
+        estimates: "Fibonacci story points"
+        separation: "Complete UI/business-logic split: pure core/ (no React), state/ adapter (contexts/hooks), presentational components/; enforced by import-boundary lint"
+    artifacts:
+      design:
+        status: "approved"
+        timestamp: "2026-07-13T00:00:00Z"
+        files: [units/U1/design.md, units/U1/decisions-design.md]
+      tasks:
+        status: "completed"
+        timestamp: "2026-07-13T00:00:00Z"
+        files: [units/U1/tasks.md, units/U1/decisions-tasks.md]
+        totalTasks: 22
+        completedTasks: 22
+  - name: "U2"
+    title: "Mission Lifecycle"
+    stories: [US-006, US-007, US-008, US-009, US-010, US-011]
+    dependsOn: [U1, server]
+    mvp: true
+    status: "completed"
+    phase: "implement"
+    note: "Implemented server-authoritatively (fast-tracked design given established patterns + pivot). Pure core src/modules/mission/core (assign/accept/reject/complete/expire + deadlines, PBT); server mission-service + /api/v1/missions endpoints; client MissionPanel + game-context wiring (pick->assigned->accept/reject->active->complete). Verified: tsc+lint+build+tests green. Reveal/reward is U3."
+  - name: "U3"
+    title: "Reveal & Reward"
+    stories: [US-012, US-013, US-014]
+    dependsOn: [U2]
+    mvp: true
+    status: "pending"
+    phase: null
+  - name: "U4"
+    title: "Sharing & Share Bonus"
+    stories: [US-015, US-016]
+    dependsOn: [U3, U1]
+    mvp: false
+    status: "pending"
+    phase: null
