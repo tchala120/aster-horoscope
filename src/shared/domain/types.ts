@@ -10,11 +10,16 @@ export type MissionStatus =
   | "expired"
   | "rejected";
 
+export interface CardArtwork {
+  love: string;
+  work: string;
+}
+
 export interface TarotCard {
   id: string;
   name: string;
   arcana: Arcana;
-  artworkRef: string;
+  artwork: CardArtwork;
   meaning: string;
 }
 

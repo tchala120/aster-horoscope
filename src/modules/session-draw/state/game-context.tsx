@@ -30,9 +30,10 @@ interface GameContextValue extends GameState {
   logout: () => Promise<void>;
   draw: () => Promise<void>;
   pick: (cardId: string) => Promise<void>;
-  accept: (missionId: string) => Promise<void>;
-  reject: (missionId: string) => Promise<void>;
-  complete: (missionId: string) => Promise<void>;
+  accept: (missionId: string) => Promise<boolean>;
+  reject: (missionId: string) => Promise<boolean>;
+  /** Resolves true when the mission was completed server-side. */
+  complete: (missionId: string) => Promise<boolean>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -99,13 +100,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const runAction = useCallback(
-    async (missionId: string, action: "accept" | "reject" | "complete") => {
+    async (
+      missionId: string,
+      action: "accept" | "reject" | "complete",
+    ): Promise<boolean> => {
       const res = await gameApi.missionAction(missionId, action);
       if (!res.ok) {
         setState((s) => ({ ...s, error: res.error.message }));
         // A failed complete (e.g. expired) still changes server state — reload.
         if (action === "complete") await loadState();
-        return;
+        return false;
       }
       setState((s) => ({
         ...s,
@@ -114,6 +118,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         pendingMission: null,
         error: null,
       }));
+      return true;
     },
     [loadState],
   );
