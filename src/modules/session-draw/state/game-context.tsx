@@ -29,6 +29,8 @@ interface GameContextValue extends GameState {
   login: (creds: AuthRequest) => Promise<boolean>;
   logout: () => Promise<void>;
   draw: () => Promise<void>;
+  /** Reshuffle today's spread during selection (does not consume a new day). */
+  reroll: () => Promise<void>;
   pick: (cardId: string) => Promise<void>;
   accept: (missionId: string) => Promise<boolean>;
   reject: (missionId: string) => Promise<boolean>;
@@ -92,6 +94,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     else setState((s) => ({ ...s, error: res.error.message }));
   }, []);
 
+  const reroll = useCallback(async () => {
+    const res = await gameApi.reroll();
+    if (res.ok) setState((s) => ({ ...s, daily: res.value.daily, error: null }));
+    else setState((s) => ({ ...s, error: res.error.message }));
+  }, []);
+
   const pick = useCallback(async (cardId: string) => {
     const res = await gameApi.pick(cardId);
     if (res.ok)
@@ -133,12 +141,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
         setState({ ...initialState, status: "anon" });
       },
       draw,
+      reroll,
       pick,
       accept: (id) => runAction(id, "accept"),
       reject: (id) => runAction(id, "reject"),
       complete: (id) => runAction(id, "complete"),
     }),
-    [state, authenticate, draw, pick, runAction],
+    [state, authenticate, draw, reroll, pick, runAction],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

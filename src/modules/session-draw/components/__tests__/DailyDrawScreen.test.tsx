@@ -24,6 +24,7 @@ describe("DailyDrawScreen", () => {
         resetAt={resetAt}
         reducedMotion
         onDraw={onDraw}
+        onReroll={() => {}}
         onPick={() => {}}
       />,
     );
@@ -40,6 +41,7 @@ describe("DailyDrawScreen", () => {
         resetAt={resetAt}
         reducedMotion
         onDraw={() => {}}
+        onReroll={() => {}}
         onPick={() => {}}
       />,
     );
@@ -54,6 +56,7 @@ describe("DailyDrawScreen", () => {
         resetAt={resetAt}
         reducedMotion
         onDraw={() => {}}
+        onReroll={() => {}}
         onPick={() => {}}
       />,
     );

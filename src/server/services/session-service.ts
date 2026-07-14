@@ -30,3 +30,20 @@ export function draw(userId: string) {
   stateRepo.set(userId, next);
   return next;
 }
+
+/**
+ * Reshuffle today's face-down spread during card selection. Product-safe: cards
+ * are hidden and missions are assigned randomly on pick, so rerolling can't game
+ * the daily limit. Does not grant an extra draw (drawDate stays today). Blocked
+ * once a mission is active.
+ */
+export function reroll(userId: string) {
+  const daily = stateRepo.get(userId);
+  if (daily.activeMissionRef) {
+    throw serviceError("DRAW_002", "Cannot reshuffle while a mission is active.", 409);
+  }
+  const now = new Date();
+  const next = applyDraw(daily, generateSpread(DECK_IDS), now);
+  stateRepo.set(userId, next);
+  return next;
+}

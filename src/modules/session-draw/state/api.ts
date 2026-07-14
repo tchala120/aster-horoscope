@@ -19,6 +19,7 @@ export const gameApi = {
   logout: () => apiFetch<{ ok: boolean }>("/auth/logout", { method: "POST" }),
   getState: () => apiFetch<SessionResponse>("/sessions/me"),
   draw: () => apiFetch<DrawResponse>("/draws", { method: "POST" }),
+  reroll: () => apiFetch<DrawResponse>("/draws/reroll", { method: "POST" }),
   pick: (cardId: string) =>
     apiFetch<MissionResponse>("/missions/pick", {
       method: "POST",

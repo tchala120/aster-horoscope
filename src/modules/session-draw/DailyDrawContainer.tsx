@@ -80,6 +80,7 @@ export function DailyDrawContainer() {
       resetAt={nextResetAt(now)}
       reducedMotion={reduced}
       onDraw={() => void game.draw()}
+      onReroll={() => void game.reroll()}
       onPick={(cardId) => void game.pick(cardId)}
     />
   );
