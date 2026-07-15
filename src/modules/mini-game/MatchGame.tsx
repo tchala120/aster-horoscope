@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
+import { BackLink } from "@/foundation/ui/components/BackLink";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
 import { Fireworks } from "@/foundation/ui/components/Fireworks";
 import { MatchCard } from "./components/MatchCard";
@@ -19,13 +19,8 @@ export function MatchGame() {
     <main className="relative flex flex-1 flex-col">
       <CelestialBackground />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 p-6">
-        <Link
-          href="/"
-          className="w-fit text-text-sm font-semibold text-aster-sky-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-aster-sky-400"
-        >
-          ← Home
-        </Link>
+      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 p-6">
+        <BackLink />
 
         <header className="flex items-end justify-between gap-4">
           <div>
@@ -61,14 +56,16 @@ export function MatchGame() {
 
         {/* Board */}
         <div className="relative">
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
             {tiles.map((tile, i) => (
               <MatchCard
                 key={tile.id}
+                index={i}
                 image={tile.image}
                 name={tile.name}
                 faceUp={tile.flipped || tile.matched}
                 matched={tile.matched}
+                wrong={locked && tile.flipped && !tile.matched}
                 disabled={locked || tile.flipped || tile.matched}
                 reducedMotion={reducedMotion}
                 onFlip={() => flip(i)}

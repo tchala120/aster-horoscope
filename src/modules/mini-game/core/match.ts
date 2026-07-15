@@ -1,4 +1,4 @@
-import type { CardArtworkTheme } from "@/shared";
+import type { CardArtworkTheme, TarotCard } from "@/shared";
 import { TAROT_DECK } from "@/data/deck";
 
 /** A single board tile. Both tiles of a pair share the same `pairKey` + `image`. */
@@ -39,13 +39,29 @@ function shuffle<T>(items: T[], rng: Rng): T[] {
 
 /**
  * Deal `pairCount` pairs of shuffled tiles drawn from distinct tarot cards.
- * Each pair gets a themed artwork; both of its tiles share that image.
+ * Each pair gets a themed artwork; both of its tiles share that image. Every
+ * pair uses a *distinct* image so no two pairs ever look alike.
  */
 export function dealTiles(pairCount: number, rng: Rng = Math.random): Tile[] {
-  const chosen = shuffle(TAROT_DECK.slice(), rng).slice(0, pairCount);
+  const deck = shuffle(TAROT_DECK.slice(), rng);
+  const used = new Set<string>();
+  const faces: { card: TarotCard; image: string }[] = [];
+
+  for (const card of deck) {
+    if (faces.length >= pairCount) break;
+    const start = Math.floor(rng() * THEMES.length);
+    for (let k = 0; k < THEMES.length; k++) {
+      const image = card.artwork[THEMES[(start + k) % THEMES.length]];
+      if (!used.has(image)) {
+        used.add(image);
+        faces.push({ card, image });
+        break;
+      }
+    }
+  }
+
   const tiles: Tile[] = [];
-  chosen.forEach((card, i) => {
-    const image = card.artwork[THEMES[i % THEMES.length]];
+  faces.forEach(({ card, image }) => {
     const base = { pairKey: card.id, name: card.name, image, flipped: false, matched: false };
     tiles.push({ ...base, id: `${card.id}-a` }, { ...base, id: `${card.id}-b` });
   });

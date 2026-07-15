@@ -5,8 +5,8 @@ import { dealTiles, isMatch, seededRng, type Tile } from "../core/match";
 
 export type { Tile } from "../core/match";
 
-/** Number of pairs on the board (12 tiles → 3×4 / 4×3 grid). */
-export const PAIRS = 6;
+/** Number of pairs on the board (18 tiles → 4×5 mobile / 6×3 desktop grid). */
+export const PAIRS = 9;
 /** Fixed seed for the first deal so server + client render identically. */
 const INITIAL_SEED = 20260715;
 /** How long a mismatched pair stays revealed before flipping back (ms). */

@@ -6,6 +6,7 @@ import type { CardArtworkTheme } from "@/shared";
 import { useToast } from "@/foundation/ui/components/Toast";
 import { MissionPanel } from "@/modules/mission/components/MissionPanel";
 import { getCardById, randomArtworkTheme } from "@/data/deck";
+import { BackLink } from "@/foundation/ui/components/BackLink";
 import { RewardReveal } from "@/modules/reveal-reward/components/RewardReveal";
 import { canDraw, nextResetAt } from "./core/draw-service";
 import { DailyDrawScreen } from "./components/DailyDrawScreen";
@@ -106,7 +107,12 @@ export function DailyDrawContainer() {
   return (
     <>
       {showProfile && game.session ? (
-        <ProfileMenu username={game.session.username} onLogout={() => void game.logout()} />
+        <>
+          <div className="fixed left-4 top-4 z-40 sm:left-6 sm:top-6">
+            <BackLink variant="chip" />
+          </div>
+          <ProfileMenu username={game.session.username} onLogout={() => void game.logout()} />
+        </>
       ) : null}
       {screen}
     </>

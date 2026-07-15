@@ -94,6 +94,31 @@ export function ProfileMenu({ username, onLogout }: ProfileMenuProps) {
           <div className="my-1 h-px bg-white/8" />
 
           <Link
+            href="/"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-text-sm font-medium text-grey-200 transition-colors hover:bg-white/8 focus:outline-none focus-visible:bg-white/8"
+          >
+            <svg
+              aria-hidden
+              width="16"
+              height="16"
+              viewBox="0 0 20 20"
+              fill="none"
+              className="text-grey-400"
+            >
+              <path
+                d="M4 7.5 10 4l6 3.5v5L10 16l-6-3.5v-5Z M10 4v12 M4 7.5 10 11l6-3.5"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Games hub
+          </Link>
+
+          <Link
             href="/history"
             role="menuitem"
             onClick={() => setOpen(false)}
