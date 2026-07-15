@@ -10,8 +10,8 @@ import { serviceError } from "@/server/service-error";
 export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => null)) as AuthRequest | null;
-    if (!body?.username || !body?.password || body.password.length < 8) {
-      throw serviceError("VALIDATION_001", "Username and password (min 8 chars) are required.", 400);
+    if (!body?.username || !body?.password || body.password.length < 3) {
+      throw serviceError("VALIDATION_001", "Username and password (min 3 chars) are required.", 400);
     }
     if (await userRepo.findByUsername(body.username)) {
       throw serviceError("AUTH_003", "That username is already taken.", 409);
