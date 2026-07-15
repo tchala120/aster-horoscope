@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import type { CardArtworkTheme } from "@/shared";
-import { TAROT_DECK } from "@/data/deck";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
 import { CardPad } from "./components/CardPad";
 import { useEchoesGame } from "./state/use-echoes-game";
 
-const THEMES: readonly CardArtworkTheme[] = ["life", "love", "money", "work"];
+/** Per-position glow accents (the cards themselves are dealt randomly each game). */
 const GLOWS = [
   "51,204,173", // teal
   "51,161,204", // sky
@@ -21,16 +19,6 @@ const GLOWS = [
   "71,212,180", // teal-400
 ];
 
-/** Nine fixed horoscope cards, one per pad (aligned by index with PAD_FREQS). */
-const PADS = Array.from({ length: 9 }, (_, i) => {
-  const card = TAROT_DECK[i];
-  return {
-    image: card.artwork[THEMES[i % THEMES.length]],
-    name: card.name,
-    glow: GLOWS[i],
-  };
-});
-
 const STATUS: Record<string, string> = {
   idle: "Watch the cards, then echo them back",
   showing: "Watch closely…",
@@ -41,7 +29,7 @@ const STATUS: Record<string, string> = {
 
 export function EchoesGame() {
   const reducedMotion = useReducedMotion() ?? false;
-  const { phase, activePad, round, score, best, canPress, start, press } = useEchoesGame();
+  const { cards, phase, activePad, round, score, best, canPress, start, press } = useEchoesGame();
 
   const showStart = phase === "idle" || phase === "over";
 
@@ -79,15 +67,16 @@ export function EchoesGame() {
 
         {/* 3×3 board */}
         <div className="grid grid-cols-3 gap-3">
-          {PADS.map((p, i) => (
+          {cards.map((card, i) => (
             <CardPad
               key={i}
-              image={p.image}
-              name={p.name}
-              glow={p.glow}
+              image={card.image}
+              name={card.name}
+              glow={GLOWS[i]}
               active={activePad === i}
               disabled={!canPress}
               reducedMotion={reducedMotion}
+              floatDelay={i * 0.18}
               onPress={() => press(i)}
             />
           ))}

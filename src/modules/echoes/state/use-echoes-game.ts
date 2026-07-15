@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { playError, playNote, primeAudio } from "@/foundation/ui/sound";
-import { PAD_COUNT, PAD_FREQS, randomStep, type Phase } from "../core/echoes";
+import {
+  dealCards,
+  PAD_COUNT,
+  PAD_FREQS,
+  randomStep,
+  seededRng,
+  type PadCard,
+  type Phase,
+} from "../core/echoes";
+
+/** Fixed seed for the first deal so server + client render the same board. */
+const INITIAL_SEED = 20260716;
 
 const SHOW_START_DELAY = 550; // pause before playback begins (ms)
 const SHOW_STEP_MS = 620; // time between pads during playback
@@ -11,6 +22,7 @@ const ADVANCE_MS = 750; // pause between a cleared round and the next
 const TAP_LIGHT_MS = 200; // how long a pad stays lit on a tap
 
 export function useEchoesGame() {
+  const [cards, setCards] = useState<PadCard[]>(() => dealCards(seededRng(INITIAL_SEED)));
   const [sequence, setSequence] = useState<number[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [inputIndex, setInputIndex] = useState(0);
@@ -69,7 +81,8 @@ export function useEchoesGame() {
 
   const start = useCallback(() => {
     primeAudio(); // unlock audio within the click gesture
-    // `best` is intentionally preserved across restarts.
+    // Fresh random cards every new game. `best` is preserved across restarts.
+    setCards(dealCards());
     setSequence([randomStep()]);
     setInputIndex(0);
     setActivePad(null);
@@ -111,6 +124,7 @@ export function useEchoesGame() {
 
   return {
     padCount: PAD_COUNT,
+    cards,
     phase,
     activePad,
     /** Current sequence length (the round being played/attempted). */
