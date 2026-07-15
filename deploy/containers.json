@@ -1,0 +1,8 @@
+{
+  "app": {
+    "image": ":aster-horoscope.app.latest",
+    "ports": {
+      "3000": "HTTP"
+    }
+  }
+}

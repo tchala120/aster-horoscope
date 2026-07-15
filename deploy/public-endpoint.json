@@ -1,0 +1,8 @@
+{
+  "containerName": "app",
+  "containerPort": 3000,
+  "healthCheck": {
+    "path": "/",
+    "successCodes": "200-499"
+  }
+}

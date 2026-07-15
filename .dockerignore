@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.github
+.aidlc
+.kiro
+e2e
+coverage
+*.md
+.env
+.env.*
+!.env.example
+Dockerfile
+.dockerignore
+docker-compose.yml

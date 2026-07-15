@@ -36,6 +36,8 @@
   },
   "trustedDependencies": [
     "sharp",
+    "prisma",
+    "@prisma/client",
     "unrs-resolver",
   ],
   "packages": {
