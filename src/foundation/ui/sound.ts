@@ -109,3 +109,26 @@ export function playRewardFanfare(intensity = 0.5, volume = 0.09): void {
     playTone(ctx, SPARKLE_NOTES[i], chordAt + 0.14 + i * 0.07, volume * 0.3, 0.4);
   }
 }
+
+/**
+ * A single bell note (fundamental + soft octave shimmer) — used by the
+ * "Echoes of the Stars" pads. No-op when Web Audio is unavailable.
+ */
+export function playNote(frequency: number, volume = 0.12, duration = 0.42): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === "suspended") void ctx.resume();
+  const start = ctx.currentTime + 0.001;
+  playTone(ctx, frequency, start, volume, duration);
+  playTone(ctx, frequency * 2, start, volume * 0.3, duration * 0.7);
+}
+
+/** A soft descending two-note cue for a mistake / game over. */
+export function playError(volume = 0.13): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === "suspended") void ctx.resume();
+  const start = ctx.currentTime + 0.001;
+  playTone(ctx, 174.61, start, volume, 0.4); // F3
+  playTone(ctx, 130.81, start + 0.12, volume, 0.5); // C3
+}

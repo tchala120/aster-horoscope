@@ -11,12 +11,24 @@ export default function Home() {
         <p className="mt-4 text-text-lg text-grey-300">
           Draw a card, take on a horoscope mission, and reveal your result.
         </p>
-        <div className="mt-8">
+        <div className="mt-8 flex flex-wrap items-center gap-3">
           <a
             href="/draw"
             className="inline-block rounded-full bg-brand-gradient px-8 py-3 text-text-md font-semibold text-grey-950 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-aster-sky-400"
           >
             Draw a Card
+          </a>
+          <a
+            href="/game"
+            className="inline-block rounded-full px-8 py-3 text-text-md font-semibold text-grey-100 ring-1 ring-white/16 transition-colors hover:bg-white/8 focus:outline-none focus-visible:ring-2 focus-visible:ring-aster-sky-400"
+          >
+            Play Tarot Match
+          </a>
+          <a
+            href="/echoes"
+            className="inline-block rounded-full px-8 py-3 text-text-md font-semibold text-grey-100 ring-1 ring-white/16 transition-colors hover:bg-white/8 focus:outline-none focus-visible:ring-2 focus-visible:ring-aster-sky-400"
+          >
+            Echoes of the Stars
           </a>
         </div>
       </section>
