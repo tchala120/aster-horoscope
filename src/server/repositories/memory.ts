@@ -13,16 +13,16 @@ class MemoryUserRepo implements UserRepo {
   private byId = new Map<string, UserRecord>();
   private byUsername = new Map<string, UserRecord>();
 
-  create(username: string, passwordHash: string): UserRecord {
+  async create(username: string, passwordHash: string): Promise<UserRecord> {
     const record: UserRecord = { id: randomUUID(), username, passwordHash };
     this.byId.set(record.id, record);
     this.byUsername.set(username.toLowerCase(), record);
     return record;
   }
-  findByUsername(username: string): UserRecord | null {
+  async findByUsername(username: string): Promise<UserRecord | null> {
     return this.byUsername.get(username.toLowerCase()) ?? null;
   }
-  findById(id: string): UserRecord | null {
+  async findById(id: string): Promise<UserRecord | null> {
     return this.byId.get(id) ?? null;
   }
 }
@@ -52,7 +52,8 @@ class MemoryMissionRepo implements MissionRepo {
   }
 }
 
-/** Singletons used by the services / route handlers. */
-export const userRepo: UserRepo = new MemoryUserRepo();
+/** Singletons. `userRepo` is selected in ./index (Prisma when DATABASE_URL is
+ *  set, this in-memory impl otherwise). State/mission stay in-memory for now. */
+export const memoryUserRepo: UserRepo = new MemoryUserRepo();
 export const stateRepo: StateRepo = new MemoryStateRepo();
 export const missionRepo: MissionRepo = new MemoryMissionRepo();

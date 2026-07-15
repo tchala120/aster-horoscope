@@ -7,9 +7,9 @@ export interface UserRecord {
 }
 
 export interface UserRepo {
-  create(username: string, passwordHash: string): UserRecord;
-  findByUsername(username: string): UserRecord | null;
-  findById(id: string): UserRecord | null;
+  create(username: string, passwordHash: string): Promise<UserRecord>;
+  findByUsername(username: string): Promise<UserRecord | null>;
+  findById(id: string): Promise<UserRecord | null>;
 }
 
 export interface StateRepo {

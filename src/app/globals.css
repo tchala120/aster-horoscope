@@ -168,11 +168,28 @@
   animation: aurora-slow2 20s ease-in-out infinite;
 }
 
+/* Breathing aura behind the revealed card. */
+@keyframes aura-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+.animate-aura-pulse {
+  animation: aura-pulse 3.2s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-twinkle,
   .animate-aurora,
   .animate-aurora-slow,
-  .animate-aurora-slow2 {
+  .animate-aurora-slow2,
+  .animate-aura-pulse {
     animation: none !important;
   }
 }

@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { userRepo } from "@/server/repositories/memory";
+import { userRepo } from "@/server/repositories";
 import { ServiceError } from "@/server/service-error";
 import { draw } from "../session-service";
 import { accept, complete, pick, reject } from "../mission-service";
 
-function seededUserWithSpread(): { userId: string; cardIds: string[] } {
-  const userId = userRepo.create(`u_${crypto.randomUUID()}`, "hash").id;
+async function seededUserWithSpread(): Promise<{ userId: string; cardIds: string[] }> {
+  const userId = (await userRepo.create(`u_${crypto.randomUUID()}`, "hash")).id;
   const daily = draw(userId);
   return { userId, cardIds: daily.spread.map((c) => c.cardId) };
 }
 
 describe("mission-service lifecycle", () => {
-  it("pick → accept → complete clears the active mission", () => {
-    const { userId, cardIds } = seededUserWithSpread();
+  it("pick → accept → complete clears the active mission", async () => {
+    const { userId, cardIds } = await seededUserWithSpread();
 
     const picked = pick(userId, cardIds[0]);
     expect(picked.mission?.status).toBe("assigned");
@@ -29,16 +29,16 @@ describe("mission-service lifecycle", () => {
     expect(completed.daily.lastCompletionDate).not.toBeNull();
   });
 
-  it("reject flags the card as rejected", () => {
-    const { userId, cardIds } = seededUserWithSpread();
+  it("reject flags the card as rejected", async () => {
+    const { userId, cardIds } = await seededUserWithSpread();
     const picked = pick(userId, cardIds[1]);
     const rejected = reject(userId, picked.mission!.id);
     expect(rejected.mission?.status).toBe("rejected");
     expect(rejected.daily.spread.find((c) => c.cardId === cardIds[1])?.rejected).toBe(true);
   });
 
-  it("blocks picking a second card while a mission is active", () => {
-    const { userId, cardIds } = seededUserWithSpread();
+  it("blocks picking a second card while a mission is active", async () => {
+    const { userId, cardIds } = await seededUserWithSpread();
     const picked = pick(userId, cardIds[0]);
     accept(userId, picked.mission!.id);
     try {

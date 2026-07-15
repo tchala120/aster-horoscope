@@ -3,7 +3,7 @@ import type { SessionResponse } from "@/shared";
 import { DECK_IDS } from "@/data/deck";
 import { applyDraw } from "@/modules/session-draw/core/daily-state";
 import { canDraw, generateSpread } from "@/modules/session-draw/core/draw-service";
-import { missionRepo, stateRepo, userRepo } from "../repositories/memory";
+import { missionRepo, stateRepo, userRepo } from "../repositories";
 import { serviceError } from "../service-error";
 
 export function buildSession(userId: string): SeekerSession {
@@ -11,8 +11,8 @@ export function buildSession(userId: string): SeekerSession {
 }
 
 /** Server-authoritative full state for a user. */
-export function getState(userId: string): SessionResponse {
-  const user = userRepo.findById(userId);
+export async function getState(userId: string): Promise<SessionResponse> {
+  const user = await userRepo.findById(userId);
   if (!user) throw serviceError("AUTH_001", "Not authenticated.", 401);
   const daily = stateRepo.get(userId);
   const activeMission = daily.activeMissionRef ? missionRepo.get(daily.activeMissionRef) : null;

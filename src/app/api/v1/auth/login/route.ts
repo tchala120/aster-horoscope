@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import type { AuthRequest, AuthResponse } from "@/shared";
 import { verifyPassword } from "@/server/auth/password";
 import { SESSION_COOKIE, createSession } from "@/server/auth/session-store";
-import { userRepo } from "@/server/repositories/memory";
+import { userRepo } from "@/server/repositories";
 import { buildSession } from "@/server/services/session-service";
 import { handleError, jsonOk } from "@/server/http";
 import { serviceError } from "@/server/service-error";
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     if (!body?.username || !body?.password) {
       throw serviceError("VALIDATION_001", "Username and password are required.", 400);
     }
-    const user = userRepo.findByUsername(body.username);
+    const user = await userRepo.findByUsername(body.username);
     if (!user || !verifyPassword(body.password, user.passwordHash)) {
       throw serviceError("AUTH_001", "Invalid username or password.", 401);
     }

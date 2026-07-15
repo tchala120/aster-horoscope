@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "framer-motion";
+import type { CardArtworkTheme } from "@/shared";
 import { useToast } from "@/foundation/ui/components/Toast";
 import { MissionPanel } from "@/modules/mission/components/MissionPanel";
-import { getCardById } from "@/data/deck";
+import { getCardById, randomArtworkTheme } from "@/data/deck";
 import { canDraw, nextResetAt } from "./core/draw-service";
 import { DailyDrawScreen } from "./components/DailyDrawScreen";
 import { CardRevealScreen } from "./components/CardRevealScreen";
@@ -20,9 +21,9 @@ export function DailyDrawContainer() {
   const game = useGame();
   const { notify } = useToast();
 
-  // After the mission is completed ("I did it"), reveal the picked card's
-  // artwork. Set optimistically on tap and reverted if completion fails.
-  const [revealedCardId, setRevealedCardId] = useState<string | null>(null);
+  // After the mission is completed ("I did it"), reveal the picked card with a
+  // randomly chosen artwork theme. Set optimistically on tap; reverted on failure.
+  const [reveal, setReveal] = useState<{ cardId: string; theme: CardArtworkTheme } | null>(null);
 
   useEffect(() => {
     if (game.error) notify(game.error, "error");
@@ -43,12 +44,13 @@ export function DailyDrawContainer() {
     );
   }
 
-  if (revealedCardId) {
+  if (reveal) {
     return (
       <CardRevealScreen
-        card={getCardById(revealedCardId)}
+        card={getCardById(reveal.cardId)}
+        theme={reveal.theme}
         reducedMotion={reduced}
-        onDone={() => setRevealedCardId(null)}
+        onDone={() => setReveal(null)}
       />
     );
   }
@@ -61,11 +63,11 @@ export function DailyDrawContainer() {
         onAccept={(id) => void game.accept(id)}
         onReject={(id) => void game.reject(id)}
         onComplete={(id) => {
-          // Reveal the picked card on completion; revert if the server rejects it.
+          // Reveal the picked card with a random theme; revert if the server rejects it.
           const cardId = mission.cardRef;
-          setRevealedCardId(cardId);
+          setReveal({ cardId, theme: randomArtworkTheme() });
           void game.complete(id).then((ok) => {
-            if (!ok) setRevealedCardId(null);
+            if (!ok) setReveal(null);
           });
         }}
       />

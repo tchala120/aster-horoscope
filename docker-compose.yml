@@ -1,0 +1,34 @@
+# Local Postgres for user/auth storage. The Next app runs on the host (bun dev),
+# so it connects via localhost:5432 (see DATABASE_URL in .env).
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: aster-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aster
+      POSTGRES_PASSWORD: aster_dev_password
+      POSTGRES_DB: aster_horoscope
+    ports:
+      - "5432:5432"
+    volumes:
+      - aster_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aster -d aster_horoscope"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Lightweight web UI to inspect the database at http://localhost:8080
+  adminer:
+    image: adminer:4
+    container_name: aster-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  aster_pgdata:

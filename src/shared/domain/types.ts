@@ -10,10 +10,16 @@ export type MissionStatus =
   | "expired"
   | "rejected";
 
+/** Themed front artwork for a card (one image per life area). */
 export interface CardArtwork {
+  life: string;
   love: string;
+  money: string;
   work: string;
 }
+
+/** The available artwork themes. */
+export type CardArtworkTheme = keyof CardArtwork;
 
 export interface TarotCard {
   id: string;

@@ -13,6 +13,7 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="flex flex-1 items-center justify-center p-8">
@@ -40,12 +41,22 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
         <label className="mt-4 block text-text-sm text-grey-300">
           Password
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete={mode === "login" ? "current-password" : "new-password"}
             className="mt-1 w-full rounded-lg bg-grey-950/60 px-3 py-2 text-grey-50 ring-1 ring-white/16 focus:outline-none focus-visible:ring-2 focus-visible:ring-aster-teal-400"
           />
+        </label>
+
+        <label className="mt-3 flex cursor-pointer select-none items-center gap-2 text-text-sm text-grey-400">
+          <input
+            type="checkbox"
+            checked={showPassword}
+            onChange={(e) => setShowPassword(e.target.checked)}
+            className="h-4 w-4 accent-aster-teal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-aster-teal-400"
+          />
+          Show password
         </label>
 
         {error ? <p className="mt-3 text-text-sm text-red-500">{error}</p> : null}
