@@ -6,8 +6,8 @@ import { canDraw, generateSpread } from "@/modules/session-draw/core/draw-servic
 import { missionRepo, stateRepo, userRepo } from "../repositories";
 import { serviceError } from "../service-error";
 
-export function buildSession(userId: string): SeekerSession {
-  return { sessionId: userId, isAuthenticated: true, userId, schemaVersion: 1 };
+export function buildSession(userId: string, username: string): SeekerSession {
+  return { sessionId: userId, isAuthenticated: true, userId, username, schemaVersion: 1 };
 }
 
 /** Server-authoritative full state for a user. */
@@ -16,7 +16,7 @@ export async function getState(userId: string): Promise<SessionResponse> {
   if (!user) throw serviceError("AUTH_001", "Not authenticated.", 401);
   const daily = stateRepo.get(userId);
   const activeMission = daily.activeMissionRef ? missionRepo.get(daily.activeMissionRef) : null;
-  return { session: buildSession(userId), daily, activeMission };
+  return { session: buildSession(userId, user.username), daily, activeMission };
 }
 
 /** Server-authoritative daily draw (one/day, blocked while a mission is active). */

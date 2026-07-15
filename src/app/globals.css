@@ -184,12 +184,45 @@
   animation: aura-pulse 3.2s ease-in-out infinite;
 }
 
+/* Reward reveal ambience: slowly rotating light rays + a shine sweep across
+   the medallion and CTA. Decorative; disabled under reduced motion. */
+@keyframes reward-rays {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+@keyframes reward-shine {
+  0% {
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  35%,
+  55% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+.animate-reward-rays {
+  animation: reward-rays 24s linear infinite;
+}
+.animate-reward-shine {
+  animation: reward-shine 2.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-twinkle,
   .animate-aurora,
   .animate-aurora-slow,
   .animate-aurora-slow2,
-  .animate-aura-pulse {
+  .animate-aura-pulse,
+  .animate-reward-rays,
+  .animate-reward-shine {
     animation: none !important;
   }
 }

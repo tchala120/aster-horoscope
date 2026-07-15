@@ -12,7 +12,9 @@ import {
   createMission,
   rejectMission,
 } from "@/modules/mission/core/mission-service";
-import { missionRepo, stateRepo } from "../repositories/memory";
+import { generateReward } from "@/modules/reveal-reward/core/reward-engine";
+import { missionRepo, rewardRepo, stateRepo } from "../repositories/memory";
+import { historyRepo } from "../repositories";
 import { serviceError } from "../service-error";
 
 /** Pick a card from today's spread and assign a mission (US-006, US-007). */
@@ -59,7 +61,7 @@ export function reject(userId: string, missionId: string): MissionResponse {
 }
 
 /** Complete an active mission if within its window (US-011); else mark expired (US-010). */
-export function complete(userId: string, missionId: string): MissionResponse {
+export async function complete(userId: string, missionId: string): Promise<MissionResponse> {
   const mission = loadMission(missionId);
   const result = completeMission(mission, new Date());
   const saved = missionRepo.update(result.mission);
@@ -77,5 +79,25 @@ export function complete(userId: string, missionId: string): MissionResponse {
 
   const next = clearActiveMission(stateRepo.get(userId), new Date());
   stateRepo.set(userId, next);
-  return { mission: saved, daily: next };
+
+  // Roll and persist the reward for this completed mission, then reveal it.
+  const reward = rewardRepo.create(generateReward(randomUUID(), saved.id));
+
+  // Record the completion in the player's history (persisted to Postgres when
+  // configured). Non-fatal: a history write failure must not break the reveal.
+  try {
+    await historyRepo.add({
+      userId,
+      cardRef: saved.cardRef,
+      featureRef: saved.featureRef,
+      difficulty: saved.difficulty,
+      rewardType: reward.rewardType,
+      rewardValue: reward.value,
+      rewardGranted: reward.granted,
+    });
+  } catch (e) {
+    console.error("Failed to record history entry", e);
+  }
+
+  return { mission: saved, daily: next, reward };
 }

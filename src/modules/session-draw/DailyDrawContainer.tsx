@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useReducedMotion } from "framer-motion";
 import type { CardArtworkTheme } from "@/shared";
 import { useToast } from "@/foundation/ui/components/Toast";
 import { MissionPanel } from "@/modules/mission/components/MissionPanel";
 import { getCardById, randomArtworkTheme } from "@/data/deck";
+import { RewardReveal } from "@/modules/reveal-reward/components/RewardReveal";
 import { canDraw, nextResetAt } from "./core/draw-service";
 import { DailyDrawScreen } from "./components/DailyDrawScreen";
 import { CardRevealScreen } from "./components/CardRevealScreen";
 import { AuthPanel } from "./components/AuthPanel";
+import { ProfileMenu } from "./components/ProfileMenu";
 import { useGame } from "./state/game-context";
 
 /**
@@ -44,8 +46,12 @@ export function DailyDrawContainer() {
     );
   }
 
+  const mission = game.pendingMission ?? game.activeMission;
+  const now = new Date();
+
+  let screen: ReactNode;
   if (reveal) {
-    return (
+    screen = (
       <CardRevealScreen
         card={getCardById(reveal.cardId)}
         theme={reveal.theme}
@@ -53,11 +59,18 @@ export function DailyDrawContainer() {
         onDone={() => setReveal(null)}
       />
     );
-  }
-
-  const mission = game.pendingMission ?? game.activeMission;
-  if (mission) {
-    return (
+  } else if (game.lastReward) {
+    // After the card reveal is dismissed, celebrate the granted reward with a
+    // firework pop-up (the server rolls the reward on completion).
+    screen = (
+      <RewardReveal
+        reward={game.lastReward}
+        reducedMotion={reduced}
+        onClose={() => game.clearReward()}
+      />
+    );
+  } else if (mission) {
+    screen = (
       <MissionPanel
         mission={mission}
         onAccept={(id) => void game.accept(id)}
@@ -72,18 +85,30 @@ export function DailyDrawContainer() {
         }}
       />
     );
+  } else {
+    screen = (
+      <DailyDrawScreen
+        spread={game.daily.spread}
+        drawable={canDraw(game.daily, now)}
+        resetAt={nextResetAt(now)}
+        reducedMotion={reduced}
+        onDraw={() => void game.draw()}
+        onReroll={() => void game.reroll()}
+        onPick={(cardId) => void game.pick(cardId)}
+      />
+    );
   }
 
-  const now = new Date();
+  // Profile chip sits top-right on the main browsing screens; hidden during the
+  // full-screen card reveal and reward pop-up so those moments stay focused.
+  const showProfile = !reveal && !game.lastReward && game.session !== null;
+
   return (
-    <DailyDrawScreen
-      spread={game.daily.spread}
-      drawable={canDraw(game.daily, now)}
-      resetAt={nextResetAt(now)}
-      reducedMotion={reduced}
-      onDraw={() => void game.draw()}
-      onReroll={() => void game.reroll()}
-      onPick={(cardId) => void game.pick(cardId)}
-    />
+    <>
+      {showProfile && game.session ? (
+        <ProfileMenu username={game.session.username} onLogout={() => void game.logout()} />
+      ) : null}
+      {screen}
+    </>
   );
 }

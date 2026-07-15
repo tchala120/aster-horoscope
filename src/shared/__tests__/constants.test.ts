@@ -15,8 +15,9 @@ describe("shared constants", () => {
     expect(DIFFICULTY_WINDOW_DAYS).toEqual({ easy: 1, medium: 3, hard: 7 });
   });
 
-  it("has 4 reward types", () => {
-    expect(REWARD_TYPES).toHaveLength(4);
+  it("has 2 reward types (ASTR token + discount)", () => {
+    expect(REWARD_TYPES).toHaveLength(2);
+    expect(REWARD_TYPES).toEqual(["astr", "discount"]);
   });
 
   it("has 10 mission feature ids (Lot of Luck excluded)", () => {

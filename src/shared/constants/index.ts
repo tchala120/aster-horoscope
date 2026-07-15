@@ -14,12 +14,7 @@ export const DIFFICULTY_WINDOW_DAYS: Record<Difficulty, number> = {
 };
 
 /** Reward types displayed on reveal (already implemented on the Aster platform). */
-export const REWARD_TYPES: readonly RewardType[] = [
-  "astr",
-  "discount",
-  "physical_coupon",
-  "artwork",
-] as const;
+export const REWARD_TYPES: readonly RewardType[] = ["astr", "discount"] as const;
 
 /** Mission catalog feature IDs (from the 10 Aster features; Lot of Luck excluded). */
 export const MISSION_FEATURE_IDS = [

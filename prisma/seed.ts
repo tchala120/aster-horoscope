@@ -18,6 +18,13 @@ const USERS: ReadonlyArray<{ username: string; password: string }> = [
   { username: "pete", password: "pete@aster" },
   { username: "pleum", password: "pleum@aster" },
   { username: "ter", password: "ter@aster" },
+  { username: "new", password: "new@aster" },
+  { username: "ear", password: "ear@aster" },
+  { username: "trust", password: "trust@aster" },
+  { username: "dookdik", password: "dookdik@aster" },
+  { username: "fang", password: "fang@aster" },
+  { username: "toh", password: "toh@aster" },
+  { username: "max", password: "max@aster" },
 ];
 
 const prisma = new PrismaClient();

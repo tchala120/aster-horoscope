@@ -1,4 +1,4 @@
-import type { DailyState, Mission } from "@/shared";
+import type { DailyState, Difficulty, HistoryEntry, Mission, RewardOutcome, RewardType } from "@/shared";
 
 export interface UserRecord {
   id: string;
@@ -22,4 +22,29 @@ export interface MissionRepo {
   create(mission: Mission): Mission;
   get(id: string): Mission | null;
   update(mission: Mission): Mission;
+}
+
+export interface RewardRepo {
+  /** Persist a granted reward outcome (keyed by its mission). */
+  create(outcome: RewardOutcome): RewardOutcome;
+  /** The reward granted for a mission, if any. */
+  getByMission(missionRef: string): RewardOutcome | null;
+}
+
+/** Fields captured when recording a completed-mission history entry. */
+export interface NewHistoryEntry {
+  userId: string;
+  cardRef: string;
+  featureRef: string;
+  difficulty: Difficulty;
+  rewardType: RewardType | null;
+  rewardValue: number | null;
+  rewardGranted: boolean;
+}
+
+export interface HistoryRepo {
+  /** Persist a completed-mission record; returns it with id + completedAt. */
+  add(entry: NewHistoryEntry): Promise<HistoryEntry>;
+  /** The user's history, newest first. */
+  listByUser(userId: string): Promise<HistoryEntry[]>;
 }

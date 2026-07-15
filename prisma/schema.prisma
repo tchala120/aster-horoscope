@@ -12,10 +12,30 @@ datasource db {
 
 /// A registered player. Passwords are stored hashed (never plaintext).
 model User {
-  id           String   @id @default(uuid())
-  username     String   @unique
+  id           String         @id @default(uuid())
+  username     String         @unique
   passwordHash String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime       @default(now())
+  history      HistoryEntry[]
 
   @@map("users")
+}
+
+/// A completed-mission record: the picked card, the quest (feature) it assigned,
+/// the reward granted, and when. Owned by the server; one row per completion.
+model HistoryEntry {
+  id            String   @id @default(uuid())
+  userId        String
+  cardRef       String
+  featureRef    String
+  difficulty    String
+  rewardType    String?
+  rewardValue   Int?
+  rewardGranted Boolean  @default(false)
+  completedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, completedAt])
+  @@map("history_entries")
 }

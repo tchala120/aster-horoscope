@@ -14,7 +14,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       case "reject":
         return jsonOk(reject(userId, id));
       case "complete":
-        return jsonOk(complete(userId, id));
+        return jsonOk(await complete(userId, id));
       default:
         throw serviceError("VALIDATION_001", "action must be accept, reject, or complete.", 400);
     }

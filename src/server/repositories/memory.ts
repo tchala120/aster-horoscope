@@ -1,7 +1,15 @@
 import { randomUUID } from "node:crypto";
-import type { DailyState, Mission } from "@/shared";
+import type { DailyState, HistoryEntry, Mission, RewardOutcome } from "@/shared";
 import { emptyDailyState } from "@/modules/session-draw/core/daily-state";
-import type { MissionRepo, StateRepo, UserRecord, UserRepo } from "./types";
+import type {
+  HistoryRepo,
+  MissionRepo,
+  NewHistoryEntry,
+  RewardRepo,
+  StateRepo,
+  UserRecord,
+  UserRepo,
+} from "./types";
 
 /**
  * In-memory repositories (process-scoped). Structured behind the repo interfaces
@@ -52,8 +60,47 @@ class MemoryMissionRepo implements MissionRepo {
   }
 }
 
-/** Singletons. `userRepo` is selected in ./index (Prisma when DATABASE_URL is
- *  set, this in-memory impl otherwise). State/mission stay in-memory for now. */
+class MemoryRewardRepo implements RewardRepo {
+  private byMission = new Map<string, RewardOutcome>();
+  create(outcome: RewardOutcome): RewardOutcome {
+    this.byMission.set(outcome.missionRef, outcome);
+    return outcome;
+  }
+  getByMission(missionRef: string): RewardOutcome | null {
+    return this.byMission.get(missionRef) ?? null;
+  }
+}
+
+class MemoryHistoryRepo implements HistoryRepo {
+  private byUser = new Map<string, HistoryEntry[]>();
+  async add(entry: NewHistoryEntry): Promise<HistoryEntry> {
+    const record: HistoryEntry = {
+      id: randomUUID(),
+      cardRef: entry.cardRef,
+      featureRef: entry.featureRef,
+      difficulty: entry.difficulty,
+      rewardType: entry.rewardType,
+      rewardValue: entry.rewardValue,
+      rewardGranted: entry.rewardGranted,
+      completedAt: new Date().toISOString(),
+    };
+    const list = this.byUser.get(entry.userId) ?? [];
+    list.push(record);
+    this.byUser.set(entry.userId, list);
+    return record;
+  }
+  async listByUser(userId: string): Promise<HistoryEntry[]> {
+    const list = this.byUser.get(userId) ?? [];
+    // Newest first.
+    return [...list].sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+  }
+}
+
+/** Singletons. `userRepo`/`historyRepo` are selected in ./index (Prisma when
+ *  DATABASE_URL is set, these in-memory impls otherwise). State/mission/reward
+ *  stay in-memory for now. */
 export const memoryUserRepo: UserRepo = new MemoryUserRepo();
 export const stateRepo: StateRepo = new MemoryStateRepo();
 export const missionRepo: MissionRepo = new MemoryMissionRepo();
+export const rewardRepo: RewardRepo = new MemoryRewardRepo();
+export const memoryHistoryRepo: HistoryRepo = new MemoryHistoryRepo();

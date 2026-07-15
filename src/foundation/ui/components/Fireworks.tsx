@@ -9,6 +9,10 @@ interface FireworksProps {
   /** How far the sparks travel from center, in px. */
   radius?: number;
   className?: string;
+  /** Seconds to wait before the burst begins (lets you stagger layered bursts). */
+  delay?: number;
+  /** Override the spark palette (e.g. to match a reward's rarity colors). */
+  colors?: string[];
 }
 
 const COLORS = ["#33CCAD", "#33A1CC", "#FFFFFF", "#7C4DFF", "#FFC24B"];
@@ -26,7 +30,13 @@ interface Spark {
  * down (gravity), then fades. Deterministic layout (no Math.random) so it's
  * SSR/hydration-safe. Purely decorative — drop inside a `relative` container.
  */
-export function Fireworks({ count = 24, radius = 180, className = "" }: FireworksProps) {
+export function Fireworks({
+  count = 24,
+  radius = 180,
+  className = "",
+  delay = 0,
+  colors = COLORS,
+}: FireworksProps) {
   const sparks = useMemo<Spark[]>(() => {
     return Array.from({ length: count }, (_, i) => {
       const angle = (i / count) * Math.PI * 2;
@@ -35,12 +45,12 @@ export function Fireworks({ count = 24, radius = 180, className = "" }: Firework
       return {
         x: Math.cos(angle) * dist,
         y: Math.sin(angle) * dist,
-        color: COLORS[i % COLORS.length],
+        color: colors[i % colors.length],
         size: 5 + jitter * 5,
         delay: (i % 4) * 0.04,
       };
     });
-  }, [count, radius]);
+  }, [count, radius, colors]);
 
   return (
     <div
@@ -64,7 +74,7 @@ export function Fireworks({ count = 24, radius = 180, className = "" }: Firework
             y: [0, s.y * 0.7, s.y, s.y + 28], // arc + gravity droop
             scale: [0.5, 1.2, 1, 0.3],
           }}
-          transition={{ duration: 1.2, ease: "easeOut", delay: s.delay, times: [0, 0.2, 0.65, 1] }}
+          transition={{ duration: 1.2, ease: "easeOut", delay: delay + s.delay, times: [0, 0.2, 0.65, 1] }}
         />
       ))}
     </div>

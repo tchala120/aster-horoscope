@@ -23,7 +23,7 @@ describe("mission-service lifecycle", () => {
     expect(accepted.mission?.deadline).not.toBe("");
     expect(accepted.daily.activeMissionRef).toBe(picked.mission!.id);
 
-    const completed = complete(userId, picked.mission!.id);
+    const completed = await complete(userId, picked.mission!.id);
     expect(completed.mission?.status).toBe("completed");
     expect(completed.daily.activeMissionRef).toBeNull();
     expect(completed.daily.lastCompletionDate).not.toBeNull();

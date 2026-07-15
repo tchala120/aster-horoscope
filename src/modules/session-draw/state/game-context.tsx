@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AuthRequest, DailyState, Mission, SeekerSession } from "@/shared";
+import type { AuthRequest, DailyState, Mission, RewardOutcome, SeekerSession } from "@/shared";
 import { gameApi } from "./api";
 
 type Status = "loading" | "authed" | "anon";
@@ -21,6 +21,8 @@ interface GameState {
   activeMission: Mission | null;
   /** Just-picked, not-yet-accepted mission awaiting accept/reject. */
   pendingMission: Mission | null;
+  /** Reward granted by the most recent completion, awaiting its reveal popup. */
+  lastReward: RewardOutcome | null;
   error: string | null;
 }
 
@@ -36,6 +38,8 @@ interface GameContextValue extends GameState {
   reject: (missionId: string) => Promise<boolean>;
   /** Resolves true when the mission was completed server-side. */
   complete: (missionId: string) => Promise<boolean>;
+  /** Dismiss the reward reveal popup after the player collects it. */
+  clearReward: () => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -46,6 +50,7 @@ const initialState: GameState = {
   daily: null,
   activeMission: null,
   pendingMission: null,
+  lastReward: null,
   error: null,
 };
 
@@ -61,6 +66,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         daily: res.value.daily,
         activeMission: res.value.activeMission,
         pendingMission: null,
+        lastReward: null,
         error: null,
       });
     } else {
@@ -124,6 +130,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         daily: res.value.daily,
         activeMission: action === "accept" ? res.value.mission : null,
         pendingMission: null,
+        lastReward: action === "complete" ? (res.value.reward ?? null) : s.lastReward,
         error: null,
       }));
       return true;
@@ -146,6 +153,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       accept: (id) => runAction(id, "accept"),
       reject: (id) => runAction(id, "reject"),
       complete: (id) => runAction(id, "complete"),
+      clearReward: () => setState((s) => ({ ...s, lastReward: null })),
     }),
     [state, authenticate, draw, reroll, pick, runAction],
   );

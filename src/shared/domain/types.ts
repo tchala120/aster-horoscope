@@ -2,7 +2,7 @@
 
 export type Difficulty = "easy" | "medium" | "hard";
 export type Arcana = "major";
-export type RewardType = "astr" | "discount" | "physical_coupon" | "artwork";
+export type RewardType = "astr" | "discount";
 export type MissionStatus =
   | "assigned"
   | "active"
@@ -42,6 +42,8 @@ export interface SeekerSession {
   sessionId: string;
   isAuthenticated: boolean;
   userId: string | null;
+  /** Display name of the authenticated player (shown in the profile menu). */
+  username: string;
   schemaVersion: number;
 }
 
@@ -69,6 +71,11 @@ export interface RewardOutcome {
   missionRef: string;
   granted: boolean;
   rewardType: RewardType | null;
+  /**
+   * The granted amount: ASTR token count (1-100) or discount percentage (1-10).
+   * Null when nothing was granted. Higher values are rarer (inverse-weighted).
+   */
+  value: number | null;
 }
 
 export interface ShareEvent {
@@ -76,6 +83,23 @@ export interface ShareEvent {
   outcomeRef: string;
   sharedAt: string;
   bonusGranted: boolean;
+}
+
+/**
+ * A completed-mission record shown in the player's history: which card was
+ * picked, the quest (feature) it assigned, the reward granted, and when.
+ * References resolve to the deck / mission catalog / reward catalog on display.
+ */
+export interface HistoryEntry {
+  id: string;
+  cardRef: string;
+  featureRef: string;
+  difficulty: Difficulty;
+  rewardType: RewardType | null;
+  rewardValue: number | null;
+  rewardGranted: boolean;
+  /** ISO-8601 UTC timestamp of the completion. */
+  completedAt: string;
 }
 
 export interface AuthContext {

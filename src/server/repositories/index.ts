@@ -1,15 +1,17 @@
-import type { UserRepo } from "./types";
-import { memoryUserRepo, missionRepo, stateRepo } from "./memory";
+import type { HistoryRepo, UserRepo } from "./types";
+import { memoryHistoryRepo, memoryUserRepo, missionRepo, rewardRepo, stateRepo } from "./memory";
 import { prismaUserRepo } from "./prisma-user-repo";
+import { prismaHistoryRepo } from "./prisma-history-repo";
 
 /**
- * User storage: PostgreSQL (Prisma) when DATABASE_URL is configured, otherwise
- * an in-memory store (dev-without-Docker). The test runner always uses the
- * in-memory store so unit tests never require a live database. Daily state and
- * missions remain in-memory for now.
+ * User + history storage: PostgreSQL (Prisma) when DATABASE_URL is configured,
+ * otherwise an in-memory store (dev-without-Docker). The test runner always uses
+ * the in-memory store so unit tests never require a live database. Daily state,
+ * missions, and rewards remain in-memory for now.
  */
 const useDatabase = Boolean(process.env.DATABASE_URL) && process.env.VITEST !== "true";
 
 export const userRepo: UserRepo = useDatabase ? prismaUserRepo : memoryUserRepo;
+export const historyRepo: HistoryRepo = useDatabase ? prismaHistoryRepo : memoryHistoryRepo;
 
-export { stateRepo, missionRepo };
+export { stateRepo, missionRepo, rewardRepo };

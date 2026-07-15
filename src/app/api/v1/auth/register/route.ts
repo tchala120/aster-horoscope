@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       path: "/",
       secure: process.env.NODE_ENV === "production",
     });
-    return jsonOk<AuthResponse>({ session: buildSession(user.id) }, 201);
+    return jsonOk<AuthResponse>({ session: buildSession(user.id, user.username) }, 201);
   } catch (e) {
     return handleError(e);
   }

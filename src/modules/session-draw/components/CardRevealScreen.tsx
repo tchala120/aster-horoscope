@@ -62,7 +62,7 @@ export function CardRevealScreen({ card, theme, reducedMotion, onDone }: CardRev
           animate={reducedMotion ? undefined : { opacity: 1, scale: 1, rotateY: 0 }}
           transition={{ duration: durations.flip, ease: easings.out }}
           style={{ transformPerspective: 1000 }}
-          className="relative aspect-[2/3] w-56 max-w-[70vw] overflow-hidden rounded-2xl bg-grey-900 ring-1 ring-white/16 shadow-2xl"
+          className="relative aspect-[2/3] w-[21rem] max-w-[90vw] overflow-hidden rounded-2xl bg-grey-900 ring-1 ring-white/16 shadow-2xl"
         >
           {imageUrl ? (
             <Image
@@ -71,7 +71,7 @@ export function CardRevealScreen({ card, theme, reducedMotion, onDone }: CardRev
               fill
               priority
               className="object-cover"
-              sizes="14rem"
+              sizes="21rem"
             />
           ) : (
             <span aria-hidden className="block h-full w-full bg-brand-gradient" />
@@ -94,7 +94,7 @@ export function CardRevealScreen({ card, theme, reducedMotion, onDone }: CardRev
         onClick={onDone}
         className="rounded-full bg-brand-gradient px-8 py-3 text-text-md font-semibold text-grey-950 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-aster-sky-300"
       >
-        Continue
+        Reveal reward
       </button>
     </div>
   );

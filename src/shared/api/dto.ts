@@ -1,4 +1,4 @@
-import type { DailyState, Mission, SeekerSession } from "../domain/types";
+import type { DailyState, HistoryEntry, Mission, RewardOutcome, SeekerSession } from "../domain/types";
 
 /** Auth request (register / login). */
 export interface AuthRequest {
@@ -32,10 +32,17 @@ export interface PickRequest {
 export interface MissionResponse {
   mission: Mission | null;
   daily: DailyState;
+  /** Present only on a successful `complete`: the granted reward to reveal. */
+  reward?: RewardOutcome | null;
 }
 
 /** PATCH /api/v1/missions/{id} */
 export type MissionAction = "accept" | "reject" | "complete";
 export interface MissionActionRequest {
   action: MissionAction;
+}
+
+/** GET /api/v1/history — the authenticated player's completed-mission history. */
+export interface HistoryResponse {
+  entries: HistoryEntry[];
 }
