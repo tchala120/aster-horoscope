@@ -132,3 +132,42 @@ export function playError(volume = 0.13): void {
   playTone(ctx, 174.61, start, volume, 0.4); // F3
   playTone(ctx, 130.81, start + 0.12, volume, 0.5); // C3
 }
+
+// ---- Audio-file clips (e.g. "/sound/happy.mp3") ----------------------------
+
+const clipCache = new Map<string, HTMLAudioElement>();
+
+function getClip(src: string): HTMLAudioElement | null {
+  if (typeof window === "undefined" || typeof Audio === "undefined") return null;
+  let clip = clipCache.get(src);
+  if (!clip) {
+    clip = new Audio(src);
+    clip.preload = "auto";
+    clipCache.set(src, clip);
+  }
+  return clip;
+}
+
+/** Warm up an audio clip so its first playback isn't delayed. No-op on server. */
+export function preloadClip(src: string): void {
+  getClip(src)?.load();
+}
+
+/**
+ * Play an audio file from /public (e.g. "/sound/happy.mp3"). Reuses one element
+ * per source, so retriggering restarts the clip rather than layering it.
+ * No-op on the server or before the first user gesture (autoplay policy).
+ */
+export function playClip(src: string, volume = 0.6): void {
+  const clip = getClip(src);
+  if (!clip) return;
+  clip.volume = Math.min(1, Math.max(0, volume));
+  try {
+    clip.currentTime = 0;
+  } catch {
+    /* metadata not ready yet — play() will still start from 0 */
+  }
+  void clip.play().catch(() => {
+    /* autoplay blocked until a user gesture — safe to ignore */
+  });
+}

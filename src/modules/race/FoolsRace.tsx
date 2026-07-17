@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AmbientMusic } from "@/foundation/ui/components/AmbientMusic";
 import { BackLink } from "@/foundation/ui/components/BackLink";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
 import { Fireworks } from "@/foundation/ui/components/Fireworks";
@@ -301,6 +302,7 @@ export function FoolsRace() {
   return (
     <main className="relative flex flex-1 flex-col">
       <CelestialBackground />
+      <AmbientMusic src="/sound/idea.mp3" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 p-6">
         <BackLink />

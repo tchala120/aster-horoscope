@@ -29,7 +29,14 @@ const SPARKLES = [
 
 function UserIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="shrink-0 text-grey-400">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden
+      className="shrink-0 text-grey-400"
+    >
       <path
         d="M10 10a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5ZM4 16.5c0-2.6 2.7-4.2 6-4.2s6 1.6 6 4.2"
         stroke="currentColor"
@@ -43,7 +50,14 @@ function UserIcon() {
 
 function LockIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="shrink-0 text-grey-400">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden
+      className="shrink-0 text-grey-400"
+    >
       <path
         d="M6.25 9V6.5a3.75 3.75 0 1 1 7.5 0V9M5.5 9h9A1.5 1.5 0 0 1 16 10.5v5A1.5 1.5 0 0 1 14.5 17h-9A1.5 1.5 0 0 1 4 15.5v-5A1.5 1.5 0 0 1 5.5 9Z"
         stroke="currentColor"
@@ -58,7 +72,12 @@ function LockIcon() {
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
     <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
-      <path d="M2.5 10S5 4.75 10 4.75 17.5 10 17.5 10 15 15.25 10 15.25 2.5 10 2.5 10Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path
+        d="M2.5 10S5 4.75 10 4.75 17.5 10 17.5 10 15 15.25 10 15.25 2.5 10 2.5 10Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
       <circle cx="10" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   ) : (
@@ -147,7 +166,12 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
                   scale: [0.5, 1, 0.5],
                   rotate: [0, 25, 0],
                 }}
-                transition={{ duration: s.dur, ease: "easeInOut", repeat: Infinity, delay: s.delay }}
+                transition={{
+                  duration: s.dur,
+                  ease: "easeInOut",
+                  repeat: Infinity,
+                  delay: s.delay,
+                }}
               >
                 {"\u2726"}
               </motion.span>

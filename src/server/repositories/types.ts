@@ -1,4 +1,12 @@
-import type { DailyState, Difficulty, HistoryEntry, Mission, RewardOutcome, RewardType } from "@/shared";
+import type {
+  DailyState,
+  Difficulty,
+  HistoryEntry,
+  MatchScore,
+  Mission,
+  RewardOutcome,
+  RewardType,
+} from "@/shared";
 
 export interface UserRecord {
   id: string;
@@ -47,4 +55,17 @@ export interface HistoryRepo {
   add(entry: NewHistoryEntry): Promise<HistoryEntry>;
   /** The user's history, newest first. */
   listByUser(userId: string): Promise<HistoryEntry[]>;
+}
+
+/** Fields captured when recording a Tarot Match ranking result. */
+export interface NewMatchScore {
+  name: string;
+  moves: number;
+}
+
+export interface MatchScoreRepo {
+  /** Persist a completed game; returns it with id + createdAt. */
+  add(entry: NewMatchScore): Promise<MatchScore>;
+  /** Top scores: fewest moves first, then most recent. */
+  top(limit: number): Promise<MatchScore[]>;
 }

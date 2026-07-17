@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { playError, playNote, playRewardFanfare, primeAudio } from "@/foundation/ui/sound";
+import { playClip, playNote, playRewardFanfare, preloadClip, primeAudio } from "@/foundation/ui/sound";
 import {
   type DifficultyId,
   type EffectKind,
@@ -39,6 +39,10 @@ const STEP_MS = 170; // one walked hop between spaces
 const LAND_MS = 420; // pause on the landing space before its effect
 const EFFECT_MS = 720; // pause to read the effect before the next turn
 const SPIN_MS = 80; // die-face cycle speed while spinning
+
+// Event mood clips (public/sound). Good events cheer, bad events groan.
+const HAPPY_SOUND = "/sound/happy.mp3";
+const SAD_SOUND = "/sound/sad.mp3";
 
 function makePlayer(i: number, name?: string): Player {
   return {
@@ -151,6 +155,8 @@ export function useRaceGame() {
     clearTimers();
     clearSpin();
     primeAudio();
+    preloadClip(HAPPY_SOUND);
+    preloadClip(SAD_SOUND);
     const pl = players.map((p, i) => ({
       ...p,
       name: p.name.trim() || `Player ${i + 1}`,
@@ -266,8 +272,7 @@ export function useRaceGame() {
     if (space.effect === "forward" || space.effect === "back") {
       at(LAND_MS, () => {
         setEvent(eventInfo);
-        if (space.effect === "forward") playNote(880, 0.1, 0.28);
-        else playError();
+        playClip(space.effect === "forward" ? HAPPY_SOUND : SAD_SOUND);
       });
       const dir = space.effect === "forward" ? 1 : -1;
       let pos = landing;
@@ -284,20 +289,20 @@ export function useRaceGame() {
       at(LAND_MS, () => {
         setPlayers(afterEffect);
         setEvent(eventInfo);
-        playNote(660, 0.1, 0.28);
+        playClip(HAPPY_SOUND);
       });
       at(EFFECT_MS, advance);
     } else if (skipSelf) {
       at(LAND_MS, () => {
         setPlayers(afterEffect);
         setEvent(eventInfo);
-        playNote(320, 0.09, 0.24);
+        playClip(SAD_SOUND);
       });
       at(EFFECT_MS, advance);
     } else if (extraTurn) {
       at(LAND_MS, () => {
         setEvent(eventInfo);
-        playNote(880, 0.1, 0.28);
+        playClip(HAPPY_SOUND);
       });
       at(EFFECT_MS, () => {
         setResolving(false);

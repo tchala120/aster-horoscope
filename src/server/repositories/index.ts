@@ -1,7 +1,15 @@
-import type { HistoryRepo, UserRepo } from "./types";
-import { memoryHistoryRepo, memoryUserRepo, missionRepo, rewardRepo, stateRepo } from "./memory";
+import type { HistoryRepo, MatchScoreRepo, UserRepo } from "./types";
+import {
+  memoryHistoryRepo,
+  memoryMatchScoreRepo,
+  memoryUserRepo,
+  missionRepo,
+  rewardRepo,
+  stateRepo,
+} from "./memory";
 import { prismaUserRepo } from "./prisma-user-repo";
 import { prismaHistoryRepo } from "./prisma-history-repo";
+import { prismaMatchScoreRepo } from "./prisma-match-score-repo";
 
 /**
  * User + history storage: PostgreSQL (Prisma) when DATABASE_URL is configured,
@@ -13,5 +21,6 @@ const useDatabase = Boolean(process.env.DATABASE_URL) && process.env.VITEST !== 
 
 export const userRepo: UserRepo = useDatabase ? prismaUserRepo : memoryUserRepo;
 export const historyRepo: HistoryRepo = useDatabase ? prismaHistoryRepo : memoryHistoryRepo;
+export const matchScoreRepo: MatchScoreRepo = useDatabase ? prismaMatchScoreRepo : memoryMatchScoreRepo;
 
 export { stateRepo, missionRepo, rewardRepo };

@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { DailyState, HistoryEntry, Mission, RewardOutcome } from "@/shared";
+import type { DailyState, HistoryEntry, MatchScore, Mission, RewardOutcome } from "@/shared";
 import { emptyDailyState } from "@/modules/session-draw/core/daily-state";
 import type {
   HistoryRepo,
+  MatchScoreRepo,
   MissionRepo,
   NewHistoryEntry,
+  NewMatchScore,
   RewardRepo,
   StateRepo,
   UserRecord,
@@ -96,11 +98,31 @@ class MemoryHistoryRepo implements HistoryRepo {
   }
 }
 
-/** Singletons. `userRepo`/`historyRepo` are selected in ./index (Prisma when
- *  DATABASE_URL is set, these in-memory impls otherwise). State/mission/reward
- *  stay in-memory for now. */
+class MemoryMatchScoreRepo implements MatchScoreRepo {
+  private scores: MatchScore[] = [];
+  async add(entry: NewMatchScore): Promise<MatchScore> {
+    const record: MatchScore = {
+      id: randomUUID(),
+      name: entry.name,
+      moves: entry.moves,
+      createdAt: new Date().toISOString(),
+    };
+    this.scores.push(record);
+    return record;
+  }
+  async top(limit: number): Promise<MatchScore[]> {
+    return [...this.scores]
+      .sort((a, b) => a.moves - b.moves || b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
+  }
+}
+
+/** Singletons. `userRepo`/`historyRepo`/`matchScoreRepo` are selected in ./index
+ *  (Prisma when DATABASE_URL is set, these in-memory impls otherwise).
+ *  State/mission/reward stay in-memory for now. */
 export const memoryUserRepo: UserRepo = new MemoryUserRepo();
 export const stateRepo: StateRepo = new MemoryStateRepo();
 export const missionRepo: MissionRepo = new MemoryMissionRepo();
 export const rewardRepo: RewardRepo = new MemoryRewardRepo();
 export const memoryHistoryRepo: HistoryRepo = new MemoryHistoryRepo();
+export const memoryMatchScoreRepo: MatchScoreRepo = new MemoryMatchScoreRepo();

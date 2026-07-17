@@ -41,7 +41,12 @@ export function MissionPanel({ mission, onAccept, onReject, onComplete }: Missio
             <>
               <button
                 type="button"
-                onClick={() => onAccept(mission.id)}
+                onClick={() => {
+                  // Open the task page synchronously (within the click) so the
+                  // browser doesn't block it, then accept the mission.
+                  if (entry?.link) window.open(entry.link, "_blank", "noopener,noreferrer");
+                  onAccept(mission.id);
+                }}
                 className="flex-1 rounded-full bg-brand-gradient px-5 py-2.5 text-text-md font-semibold text-grey-950 transition-transform hover:scale-[1.02]"
               >
                 Accept
@@ -55,13 +60,25 @@ export function MissionPanel({ mission, onAccept, onReject, onComplete }: Missio
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => onComplete(mission.id)}
-              className="flex-1 rounded-full bg-brand-gradient px-5 py-2.5 text-text-md font-semibold text-grey-950 transition-transform hover:scale-[1.02]"
-            >
-              I did it
-            </button>
+            <>
+              {entry?.link ? (
+                <a
+                  href={entry.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 rounded-full px-5 py-2.5 text-center text-text-md font-semibold text-grey-200 ring-1 ring-white/16 transition-colors hover:bg-white/8"
+                >
+                  Open task ↗
+                </a>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => onComplete(mission.id)}
+                className="flex-1 rounded-full bg-brand-gradient px-5 py-2.5 text-text-md font-semibold text-grey-950 transition-transform hover:scale-[1.02]"
+              >
+                I did it
+              </button>
+            </>
           )}
         </div>
       </div>

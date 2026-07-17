@@ -1,4 +1,11 @@
-import type { DailyState, HistoryEntry, Mission, RewardOutcome, SeekerSession } from "../domain/types";
+import type {
+  DailyState,
+  HistoryEntry,
+  MatchScore,
+  Mission,
+  RewardOutcome,
+  SeekerSession,
+} from "../domain/types";
 
 /** Auth request (register / login). */
 export interface AuthRequest {
@@ -45,4 +52,16 @@ export interface MissionActionRequest {
 /** GET /api/v1/history — the authenticated player's completed-mission history. */
 export interface HistoryResponse {
   entries: HistoryEntry[];
+}
+
+/** GET/POST /api/v1/match/scores — Tarot Match ranking board (fewest moves first). */
+export interface MatchScoresResponse {
+  scores: MatchScore[];
+  /** Present after a submit: the id of the just-recorded score (to highlight it). */
+  yourScoreId?: string | null;
+}
+
+/** POST /api/v1/match/scores — record a completed game. Name derives from the session. */
+export interface SubmitMatchScoreRequest {
+  moves: number;
 }

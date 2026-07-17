@@ -39,3 +39,15 @@ model HistoryEntry {
   @@index([userId, completedAt])
   @@map("history_entries")
 }
+
+/// A Tarot Match ranking-board result: player name, score (fewer moves is
+/// better) and when it was set. Public board — not user-scoped.
+model MatchScore {
+  id        String   @id @default(uuid())
+  name      String
+  moves     Int
+  createdAt DateTime @default(now())
+
+  @@index([moves, createdAt])
+  @@map("match_scores")
+}

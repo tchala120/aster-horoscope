@@ -1,10 +1,15 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import type { MatchScore } from "@/shared";
+import { AmbientMusic } from "@/foundation/ui/components/AmbientMusic";
 import { BackLink } from "@/foundation/ui/components/BackLink";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
 import { Fireworks } from "@/foundation/ui/components/Fireworks";
+import { Leaderboard } from "./components/Leaderboard";
 import { MatchCard } from "./components/MatchCard";
+import { leaderboardApi } from "./state/leaderboard-api";
 import { useMatchGame } from "./state/use-match-game";
 
 /**
@@ -15,9 +20,46 @@ export function MatchGame() {
   const reducedMotion = useReducedMotion() ?? false;
   const { tiles, moves, matches, totalPairs, locked, won, flip, restart } = useMatchGame();
 
+  // Ranking board: load on mount, submit the score when a game is won.
+  const [scores, setScores] = useState<MatchScore[]>([]);
+  const [loadingScores, setLoadingScores] = useState(true);
+  const [myScoreId, setMyScoreId] = useState<string | null>(null);
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    void leaderboardApi.top().then((res) => {
+      if (!active) return;
+      setLoadingScores(false);
+      if (res.ok) setScores(res.value.scores);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!won || submittedRef.current) return;
+    submittedRef.current = true;
+    void leaderboardApi.submit(moves).then((res) => {
+      if (res.ok) {
+        setScores(res.value.scores);
+        setMyScoreId(res.value.yourScoreId ?? null);
+      }
+    });
+  }, [won, moves]);
+
+  // Start a fresh game: clear the ranking highlight and allow the next submit.
+  const handleRestart = () => {
+    submittedRef.current = false;
+    setMyScoreId(null);
+    restart();
+  };
+
   return (
     <main className="relative flex flex-1 flex-col">
       <CelestialBackground />
+      <AmbientMusic src="/sound/adventure.mp3" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 p-6">
         <BackLink />
@@ -31,7 +73,7 @@ export function MatchGame() {
           </div>
           <button
             type="button"
-            onClick={restart}
+            onClick={handleRestart}
             className="shrink-0 rounded-full bg-white/8 px-4 py-2 text-text-sm font-semibold text-grey-100 ring-1 ring-white/12 transition-colors hover:bg-white/16 focus:outline-none focus-visible:ring-2 focus-visible:ring-aster-teal-400"
           >
             Shuffle
@@ -54,8 +96,8 @@ export function MatchGame() {
           </span>
         </div>
 
-        {/* Board */}
-        <div className="relative">
+        {/* Board — 6 columns, scaled up 1.2x on large screens */}
+        <div className="relative lg:-ml-[10%] lg:w-[120%]">
           <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
             {tiles.map((tile, i) => (
               <MatchCard
@@ -92,7 +134,7 @@ export function MatchGame() {
                 </p>
                 <button
                   type="button"
-                  onClick={restart}
+                  onClick={handleRestart}
                   className="mt-5 rounded-full bg-brand-gradient px-8 py-3 text-text-md font-semibold text-grey-950 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                 >
                   Play again
@@ -101,6 +143,8 @@ export function MatchGame() {
             </div>
           )}
         </div>
+
+        <Leaderboard scores={scores} highlightId={myScoreId} loading={loadingScores} />
       </div>
     </main>
   );

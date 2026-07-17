@@ -106,3 +106,12 @@ export interface AuthContext {
   userId: string;
   username: string;
 }
+
+/** A Tarot Match ranking-board entry: player name, score (fewer moves is better), and date. */
+export interface MatchScore {
+  id: string;
+  name: string;
+  moves: number;
+  /** ISO-8601 UTC timestamp of when the score was set. */
+  createdAt: string;
+}
