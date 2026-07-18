@@ -115,3 +115,48 @@ export interface MatchScore {
   /** ISO-8601 UTC timestamp of when the score was set. */
   createdAt: string;
 }
+
+// ---- Aster School ----------------------------------------------------------
+
+export type LessonType = "article" | "pdf" | "video";
+export type ReactionType = "like" | "bookmark";
+
+/** A knowledge lesson: a written article (markdown), an uploaded PDF, or a linked video. */
+export interface Lesson {
+  id: string;
+  authorId: string;
+  authorName: string;
+  title: string;
+  summary: string | null;
+  type: LessonType;
+  /** Markdown body (articles only). */
+  content: string | null;
+  /** Original file name (PDFs only). */
+  pdfFileName: string | null;
+  /** YouTube link (videos only). */
+  videoUrl: string | null;
+  /** YouTube channel name, fetched when the link was attached (videos only). */
+  videoAuthor: string | null;
+  tags: string[];
+  createdAt: string; // ISO-8601 UTC
+  updatedAt: string; // ISO-8601 UTC
+}
+
+/** A lesson enriched with engagement counts for cards and the detail view. */
+export interface LessonSummary extends Lesson {
+  commentCount: number;
+  likeCount: number;
+  bookmarkCount: number;
+  /** Live YouTube view count (videos only); null when unavailable or not a video. */
+  videoViews: number | null;
+}
+
+/** A comment on a lesson. */
+export interface LessonComment {
+  id: string;
+  lessonId: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string; // ISO-8601 UTC
+}

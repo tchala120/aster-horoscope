@@ -15,6 +15,12 @@ interface Star {
  * Deterministic star field so the server and client render identically
  * (a plain Math.random() would cause a hydration mismatch).
  */
+// Browsers round numeric CSS values to ~6 significant figures when they
+// reflect a parsed `style` attribute back into the DOM, but React compares
+// the server HTML against the full-precision float computed on the client.
+// Rounding here keeps both sides byte-identical so hydration never flags it.
+const round4 = (n: number) => Math.round(n * 10000) / 10000;
+
 function useStars(count: number, seed: number): Star[] {
   return useMemo(() => {
     // Pure sin-hash: deterministic pseudo-random with no mutable state.
@@ -23,12 +29,12 @@ function useStars(count: number, seed: number): Star[] {
       return x - Math.floor(x);
     };
     return Array.from({ length: count }, (_, i) => ({
-      top: rand(i * 6 + 1) * 100,
-      left: rand(i * 6 + 2) * 100,
-      size: 1 + rand(i * 6 + 3) * 2.4,
-      delay: rand(i * 6 + 4) * 6,
-      duration: 3 + rand(i * 6 + 5) * 5,
-      opacity: 0.35 + rand(i * 6 + 6) * 0.6,
+      top: round4(rand(i * 6 + 1) * 100),
+      left: round4(rand(i * 6 + 2) * 100),
+      size: round4(1 + rand(i * 6 + 3) * 2.4),
+      delay: round4(rand(i * 6 + 4) * 6),
+      duration: round4(3 + rand(i * 6 + 5) * 5),
+      opacity: round4(0.35 + rand(i * 6 + 6) * 0.6),
     }));
   }, [count, seed]);
 }

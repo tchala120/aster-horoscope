@@ -27,7 +27,6 @@ interface GameState {
 }
 
 interface GameContextValue extends GameState {
-  register: (creds: AuthRequest) => Promise<boolean>;
   login: (creds: AuthRequest) => Promise<boolean>;
   logout: () => Promise<void>;
   draw: () => Promise<void>;
@@ -81,9 +80,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     void loadState();
   }, [loadState]);
 
-  const authenticate = useCallback(
-    async (creds: AuthRequest, mode: "login" | "register") => {
-      const res = mode === "login" ? await gameApi.login(creds) : await gameApi.register(creds);
+  const login = useCallback(
+    async (creds: AuthRequest) => {
+      const res = await gameApi.login(creds);
       if (!res.ok) {
         setState((s) => ({ ...s, error: res.error.message }));
         return false;
@@ -141,8 +140,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const value = useMemo<GameContextValue>(
     () => ({
       ...state,
-      register: (creds) => authenticate(creds, "register"),
-      login: (creds) => authenticate(creds, "login"),
+      login,
       logout: async () => {
         await gameApi.logout();
         setState({ ...initialState, status: "anon" });
@@ -155,7 +153,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       complete: (id) => runAction(id, "complete"),
       clearReward: () => setState((s) => ({ ...s, lastReward: null })),
     }),
-    [state, authenticate, draw, reroll, pick, runAction],
+    [state, login, draw, reroll, pick, runAction],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

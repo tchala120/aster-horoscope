@@ -2,8 +2,12 @@ import type {
   DailyState,
   Difficulty,
   HistoryEntry,
+  Lesson,
+  LessonComment,
+  LessonType,
   MatchScore,
   Mission,
+  ReactionType,
   RewardOutcome,
   RewardType,
 } from "@/shared";
@@ -68,4 +72,77 @@ export interface MatchScoreRepo {
   add(entry: NewMatchScore): Promise<MatchScore>;
   /** Top scores: fewest moves first, then most recent. */
   top(limit: number): Promise<MatchScore[]>;
+}
+
+// ---- Aster School ----------------------------------------------------------
+
+export interface NewLesson {
+  authorId: string;
+  authorName: string;
+  title: string;
+  summary: string | null;
+  type: LessonType;
+  content: string | null;
+  pdfFileName: string | null;
+  videoUrl: string | null;
+  videoAuthor: string | null;
+  tags: string[];
+}
+
+export interface LessonPatch {
+  title: string;
+  summary: string | null;
+  content: string | null;
+  videoUrl: string | null;
+  videoAuthor: string | null;
+  tags: string[];
+}
+
+export interface LessonListQuery {
+  page: number;
+  limit: number;
+  q?: string;
+  tag?: string;
+  types?: LessonType[];
+}
+
+export interface LessonCounts {
+  comments: number;
+  likes: number;
+  bookmarks: number;
+}
+
+export interface NewComment {
+  lessonId: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+}
+
+/** An image uploaded via the rich text editor's image button. */
+export interface AssetRepo {
+  create(authorId: string, data: Uint8Array, mimeType: string): Promise<{ id: string }>;
+  get(id: string): Promise<{ data: Uint8Array; mimeType: string } | null>;
+}
+
+/** Aster School data access (lessons + PDF blobs + comments + reactions). */
+export interface SchoolRepo {
+  createLesson(input: NewLesson, pdf?: Uint8Array): Promise<Lesson>;
+  updateLesson(id: string, patch: LessonPatch): Promise<Lesson>;
+  deleteLesson(id: string): Promise<void>;
+  getLesson(id: string): Promise<Lesson | null>;
+  getLessonFile(id: string): Promise<{ data: Uint8Array; fileName: string } | null>;
+  listLessons(query: LessonListQuery): Promise<{ lessons: Lesson[]; total: number }>;
+  /** Engagement counts keyed by lesson id (missing ids default to zero). */
+  countsFor(lessonIds: string[]): Promise<Map<string, LessonCounts>>;
+
+  listComments(lessonId: string): Promise<LessonComment[]>;
+  addComment(input: NewComment): Promise<LessonComment>;
+  getComment(id: string): Promise<LessonComment | null>;
+  deleteComment(id: string): Promise<void>;
+
+  /** Add the reaction if absent, remove it if present (idempotent toggle). */
+  toggleReaction(lessonId: string, userId: string, type: ReactionType): Promise<void>;
+  reactionCounts(lessonId: string): Promise<{ likes: number; bookmarks: number }>;
+  userReactions(lessonId: string, userId: string): Promise<ReactionType[]>;
 }

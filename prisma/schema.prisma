@@ -51,3 +51,85 @@ model MatchScore {
   @@index([moves, createdAt])
   @@map("match_scores")
 }
+
+/// Aster School — a community knowledge lesson: a written article (markdown),
+/// an uploaded PDF, or a linked video. Public to read; authored by a signed-in user.
+model Lesson {
+  id          String     @id @default(uuid())
+  authorId    String
+  authorName  String
+  title       String
+  summary     String?
+  type        String // "article" | "pdf" | "video"
+  content     String? // markdown (articles)
+  pdfFileName String?
+  videoUrl    String? // YouTube link (video)
+  videoAuthor String? // YouTube channel name, fetched when the link is attached
+  tags        String[]   @default([])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  file      LessonFile?
+  comments  Comment[]
+  reactions Reaction[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("lessons")
+}
+
+/// The bytes of an uploaded PDF (kept in its own table so lesson listings
+/// never load the blob). Served inline via the lesson file endpoint.
+model LessonFile {
+  id        String   @id @default(uuid())
+  lessonId  String   @unique
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@map("lesson_files")
+}
+
+/// An image attached inline into a lesson's markdown body via the rich text
+/// editor. Not tied to a lesson row — images upload before the lesson (which
+/// may not exist yet) is saved, and are referenced by URL from the markdown.
+model Asset {
+  id        String   @id @default(uuid())
+  authorId  String
+  data      Bytes
+  mimeType  String
+  createdAt DateTime @default(now())
+
+  @@index([authorId])
+  @@map("assets")
+}
+
+/// A comment on a lesson.
+model Comment {
+  id         String   @id @default(uuid())
+  lessonId   String
+  authorId   String
+  authorName String
+  body       String
+  createdAt  DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, createdAt])
+  @@map("comments")
+}
+
+/// A like/bookmark reaction on a lesson (one per user per type).
+model Reaction {
+  id        String   @id @default(uuid())
+  lessonId  String
+  userId    String
+  type      String // "like" | "bookmark"
+  createdAt DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, userId, type])
+  @@map("reactions")
+}

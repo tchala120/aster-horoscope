@@ -61,6 +61,14 @@ const TILES: Tile[] = [
     glow: "255,90,138",
   },
   {
+    href: "/school",
+    title: "Aster School",
+    desc: "Community knowledge — read articles, upload docs, share what you know.",
+    cta: "Explore",
+    glyph: "\u270E", // ✎
+    glow: "51,204,173",
+  },
+  {
     href: "/history",
     title: "Your History",
     desc: "Every card you drew, the quest it gave, and the reward you earned.",
@@ -91,12 +99,7 @@ export function GameHub() {
     return (
       <>
         <AmbientMusic src="/sound/loffy.mp3" />
-        <AuthPanel
-          error={game.error}
-          onSubmit={(mode, creds) =>
-            void (mode === "login" ? game.login(creds) : game.register(creds))
-          }
-        />
+        <AuthPanel error={game.error} onSubmit={(creds) => void game.login(creds)} />
       </>
     );
   }

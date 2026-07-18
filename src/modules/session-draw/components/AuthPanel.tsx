@@ -8,7 +8,7 @@ import { CelestialBackground } from "@/foundation/ui/components/CelestialBackgro
 
 interface AuthPanelProps {
   error?: string | null;
-  onSubmit: (mode: "login" | "register", creds: AuthRequest) => void;
+  onSubmit: (creds: AuthRequest) => void;
 }
 
 /** Decorative fanned tarot cards for the welcome hero. */
@@ -94,14 +94,12 @@ function EyeIcon({ open }: { open: boolean }) {
   );
 }
 
-/** Presentational, welcoming login/register screen. Parent owns auth logic. */
+/** Presentational, welcoming login screen (whitelist-only — no self-signup). Parent owns auth logic. */
 export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
-  const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const reduced = useReducedMotion() ?? false;
-  const isLogin = mode === "login";
 
   return (
     <div className="relative flex flex-1 items-center justify-center p-6">
@@ -183,13 +181,9 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
           <p className="text-text-sm font-semibold uppercase tracking-[0.2em] text-aster-teal-400">
             Aster Horoscope
           </p>
-          <h1 className="mt-2 text-heading-lg font-bold text-grey-50">
-            {isLogin ? "Welcome back, seeker" : "Begin your journey"}
-          </h1>
+          <h1 className="mt-2 text-heading-lg font-bold text-grey-50">Welcome back, seeker</h1>
           <p className="mx-auto mt-2 max-w-xs text-text-md text-grey-400">
-            {isLogin
-              ? "Sign in to draw today's card and continue your ritual."
-              : "Create an account to start your daily tarot ritual."}
+            Sign in to draw today&apos;s card and continue your ritual.
           </p>
         </div>
 
@@ -197,7 +191,7 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            onSubmit(mode, { username, password });
+            onSubmit({ username, password });
           }}
           className="mt-6 rounded-3xl bg-grey-900/70 p-6 ring-1 ring-white/8 backdrop-blur-xl"
         >
@@ -226,7 +220,7 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete={isLogin ? "current-password" : "new-password"}
+              autoComplete="current-password"
               placeholder="Password"
               className="w-full bg-transparent py-3 text-text-md text-grey-50 placeholder:text-grey-500 focus:outline-none"
             />
@@ -246,20 +240,12 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
             type="submit"
             className="mt-5 w-full rounded-full bg-brand-gradient px-6 py-3.5 text-text-md font-semibold text-grey-950 shadow-lg transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
-            {isLogin ? "Enter" : "Create account"}
+            Enter
           </button>
         </form>
 
-        {/* Mode toggle */}
         <p className="mt-5 text-center text-text-sm text-grey-400">
-          {isLogin ? "New here? " : "Already have an account? "}
-          <button
-            type="button"
-            onClick={() => setMode(isLogin ? "register" : "login")}
-            className="font-semibold text-aster-sky-300 hover:underline focus:outline-none focus-visible:underline"
-          >
-            {isLogin ? "Create an account" : "Log in"}
-          </button>
+          Don&apos;t have an account? Contact an admin for access.
         </p>
       </motion.div>
     </div>
