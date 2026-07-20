@@ -14,7 +14,7 @@ import type { Lesson } from "@/shared";
 import type { LessonCounts } from "../repositories/types";
 import { schoolRepo, userRepo } from "../repositories";
 import { serviceError } from "../service-error";
-import { extractYoutubeId, fetchYoutubeAuthor, fetchYoutubeViewCounts } from "../youtube";
+import { extractYoutubeId, fetchYoutubeAuthor, fetchYoutubeVideoMeta } from "../youtube";
 
 const TITLE_MAX = 200;
 const SUMMARY_MAX = 500;
@@ -98,11 +98,12 @@ function toSummary(lesson: Lesson, counts: LessonCounts | undefined): LessonSumm
     likeCount: counts?.likes ?? 0,
     bookmarkCount: counts?.bookmarks ?? 0,
     videoViews: null,
+    videoDurationSeconds: null,
   };
 }
 
-/** Fills in live YouTube view counts for video lessons (best-effort; leaves others untouched). */
-async function attachVideoViews(summaries: LessonSummary[]): Promise<LessonSummary[]> {
+/** Fills in live YouTube view counts + durations for video lessons (best-effort; leaves others untouched). */
+async function attachVideoMeta(summaries: LessonSummary[]): Promise<LessonSummary[]> {
   const idsByLesson = new Map<string, string>();
   for (const s of summaries) {
     const ytId = s.type === "video" && s.videoUrl ? extractYoutubeId(s.videoUrl) : null;
@@ -110,13 +111,13 @@ async function attachVideoViews(summaries: LessonSummary[]): Promise<LessonSumma
   }
   if (idsByLesson.size === 0) return summaries;
 
-  const views = await fetchYoutubeViewCounts([...idsByLesson.values()]);
-  if (views.size === 0) return summaries;
+  const meta = await fetchYoutubeVideoMeta([...idsByLesson.values()]);
+  if (meta.size === 0) return summaries;
 
   return summaries.map((s) => {
     const ytId = idsByLesson.get(s.id);
-    const count = ytId ? views.get(ytId) : undefined;
-    return count === undefined ? s : { ...s, videoViews: count };
+    const m = ytId ? meta.get(ytId) : undefined;
+    return m === undefined ? s : { ...s, videoViews: m.views, videoDurationSeconds: m.durationSeconds };
   });
 }
 
@@ -153,7 +154,7 @@ export async function listLessons(params: {
     types: types?.length ? types : undefined,
   });
   const counts = await schoolRepo.countsFor(lessons.map((l) => l.id));
-  const summaries = await attachVideoViews(lessons.map((l) => toSummary(l, counts.get(l.id))));
+  const summaries = await attachVideoMeta(lessons.map((l) => toSummary(l, counts.get(l.id))));
   return { lessons: summaries, total, page, limit };
 }
 
@@ -161,7 +162,7 @@ export async function getLesson(id: string, userId: string | null): Promise<Less
   const lesson = await requireLesson(id);
   const counts = await schoolRepo.countsFor([id]);
   const yourReactions = userId ? await schoolRepo.userReactions(id, userId) : [];
-  const [summary] = await attachVideoViews([toSummary(lesson, counts.get(id))]);
+  const [summary] = await attachVideoMeta([toSummary(lesson, counts.get(id))]);
   return { lesson: summary, yourReactions };
 }
 

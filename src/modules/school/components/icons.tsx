@@ -47,6 +47,16 @@ export function PlayIcon({ className }: { className?: string }) {
   );
 }
 
+export function KebabIcon({ className }: { className?: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden>
+      <circle cx="10" cy="4.5" r="1.6" />
+      <circle cx="10" cy="10" r="1.6" />
+      <circle cx="10" cy="15.5" r="1.6" />
+    </svg>
+  );
+}
+
 export function YouTubeIcon({ className }: { className?: string }) {
   return (
     <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden>

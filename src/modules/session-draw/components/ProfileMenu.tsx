@@ -7,6 +7,9 @@ interface ProfileMenuProps {
   /** Logged-in player's display name. */
   username: string;
   onLogout: () => void;
+  /** Controlled open state (e.g. driven by a sidebar "Profile" item). Falls back to internal state when omitted. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -14,8 +17,10 @@ interface ProfileMenuProps {
  * and opens a small menu with "Log out". Presentational — the parent owns auth.
  * Closes on outside click or Escape.
  */
-export function ProfileMenu({ username, onLogout }: ProfileMenuProps) {
-  const [open, setOpen] = useState(false);
+export function ProfileMenu({ username, onLogout, open: openProp, onOpenChange }: ProfileMenuProps) {
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = onOpenChange ?? setOpenState;
   const ref = useRef<HTMLDivElement>(null);
   const initial = username.trim().charAt(0).toUpperCase() || "?";
 
@@ -33,13 +38,13 @@ export function ProfileMenu({ username, onLogout }: ProfileMenuProps) {
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, setOpen]);
 
   return (
     <div ref={ref} className="fixed right-4 top-4 z-40 sm:right-6 sm:top-6">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Account: ${username}`}

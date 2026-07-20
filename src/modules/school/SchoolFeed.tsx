@@ -6,6 +6,7 @@ import type { LessonSummary, LessonType } from "@/shared";
 import { BackLink } from "@/foundation/ui/components/BackLink";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
 import { LessonCard } from "./components/LessonCard";
+import { VideoCard } from "./components/VideoCard";
 import { schoolApi } from "./state/school-api";
 
 const LIMIT = 12;
@@ -39,6 +40,22 @@ export function SchoolFeed() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void schoolApi.session().then((res) => {
+      if (active && res.ok) setCurrentUserId(res.value.session.userId);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const onDeleted = (id: string) => {
+    setLessons((prev) => prev.filter((l) => l.id !== id));
+    setTotal((prev) => prev - 1);
+  };
 
   const runFetch = useCallback((pageToLoad: number, filters: Filters, replace: boolean) => {
     return schoolApi
@@ -89,7 +106,11 @@ export function SchoolFeed() {
     <main className="relative flex flex-1 flex-col">
       <CelestialBackground />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-6">
+      <div
+        className={`relative z-10 mx-auto flex w-full flex-1 flex-col gap-6 p-6 ${
+          applied.group === "video" ? "max-w-6xl" : "max-w-4xl"
+        }`}
+      >
         <BackLink />
 
         <header className="flex flex-wrap items-end justify-between gap-4">
@@ -164,10 +185,16 @@ export function SchoolFeed() {
               Write a lesson
             </Link>
           </div>
+        ) : applied.group === "video" ? (
+          <div className="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+            {lessons.map((lesson) => (
+              <VideoCard key={lesson.id} lesson={lesson} currentUserId={currentUserId} onDeleted={onDeleted} />
+            ))}
+          </div>
         ) : (
           <div className="divide-y divide-white/8 rounded-xl bg-grey-900/30 ring-1 ring-white/8">
             {lessons.map((lesson) => (
-              <LessonCard key={lesson.id} lesson={lesson} />
+              <LessonCard key={lesson.id} lesson={lesson} currentUserId={currentUserId} onDeleted={onDeleted} />
             ))}
           </div>
         )}

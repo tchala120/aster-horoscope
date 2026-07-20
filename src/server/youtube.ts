@@ -27,33 +27,49 @@ export async function fetchYoutubeAuthor(videoId: string): Promise<string | null
 }
 
 interface VideosListResponse {
-  items?: { id: string; statistics?: { viewCount?: string } }[];
+  items?: { id: string; statistics?: { viewCount?: string }; contentDetails?: { duration?: string } }[];
+}
+
+export interface YoutubeVideoMeta {
+  views: number | null;
+  durationSeconds: number | null;
+}
+
+/** Parses an ISO-8601 duration like "PT1H2M3S" into total seconds. */
+function parseIsoDuration(iso: string): number | null {
+  const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
+  if (!m) return null;
+  const [, h, min, s] = m;
+  return Number(h ?? 0) * 3600 + Number(min ?? 0) * 60 + Number(s ?? 0);
 }
 
 /**
- * Live view counts for up to 50 videos via the YouTube Data API v3 (`videos.list`).
- * Requires YOUTUBE_API_KEY; returns an empty map when it's unset or the request fails,
- * so view counts simply stay absent rather than breaking the feed.
+ * Live view counts + durations for up to 50 videos via the YouTube Data API v3
+ * (`videos.list`). Requires YOUTUBE_API_KEY; returns an empty map when it's unset
+ * or the request fails, so this metadata simply stays absent rather than breaking the feed.
  */
-export async function fetchYoutubeViewCounts(videoIds: string[]): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
+export async function fetchYoutubeVideoMeta(videoIds: string[]): Promise<Map<string, YoutubeVideoMeta>> {
+  const map = new Map<string, YoutubeVideoMeta>();
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey || videoIds.length === 0) return map;
 
   try {
     const url = new URL("https://www.googleapis.com/youtube/v3/videos");
-    url.searchParams.set("part", "statistics");
+    url.searchParams.set("part", "statistics,contentDetails");
     url.searchParams.set("id", videoIds.slice(0, 50).join(","));
     url.searchParams.set("key", apiKey);
     const res = await fetch(url);
     if (!res.ok) return map;
     const data = (await res.json()) as VideosListResponse;
     for (const item of data.items ?? []) {
-      const count = Number(item.statistics?.viewCount);
-      if (Number.isFinite(count)) map.set(item.id, count);
+      const views = Number(item.statistics?.viewCount);
+      map.set(item.id, {
+        views: Number.isFinite(views) ? views : null,
+        durationSeconds: item.contentDetails?.duration ? parseIsoDuration(item.contentDetails.duration) : null,
+      });
     }
   } catch {
-    // Leave the map as-is (partial results are fine, total failure just yields no views).
+    // Leave the map as-is (partial results are fine, total failure just yields no metadata).
   }
   return map;
 }

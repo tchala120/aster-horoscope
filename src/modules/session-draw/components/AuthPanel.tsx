@@ -8,7 +8,7 @@ import { CelestialBackground } from "@/foundation/ui/components/CelestialBackgro
 
 interface AuthPanelProps {
   error?: string | null;
-  onSubmit: (creds: AuthRequest) => void;
+  onSubmit: (creds: AuthRequest) => Promise<unknown>;
 }
 
 /** Decorative fanned tarot cards for the welcome hero. */
@@ -99,6 +99,7 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const reduced = useReducedMotion() ?? false;
 
   return (
@@ -191,7 +192,9 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            onSubmit({ username, password });
+            if (submitting) return;
+            setSubmitting(true);
+            void onSubmit({ username, password }).finally(() => setSubmitting(false));
           }}
           className="mt-6 rounded-3xl bg-grey-900/70 p-6 ring-1 ring-white/8 backdrop-blur-xl"
         >
@@ -206,7 +209,8 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
               placeholder="Username"
-              className="w-full bg-transparent py-3 text-text-md text-grey-50 placeholder:text-grey-500 focus:outline-none"
+              disabled={submitting}
+              className="w-full bg-transparent py-3 text-text-md text-grey-50 placeholder:text-grey-500 focus:outline-none disabled:opacity-60"
             />
           </div>
 
@@ -222,7 +226,8 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
               placeholder="Password"
-              className="w-full bg-transparent py-3 text-text-md text-grey-50 placeholder:text-grey-500 focus:outline-none"
+              disabled={submitting}
+              className="w-full bg-transparent py-3 text-text-md text-grey-50 placeholder:text-grey-500 focus:outline-none disabled:opacity-60"
             />
             <button
               type="button"
@@ -238,9 +243,10 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
 
           <button
             type="submit"
-            className="mt-5 w-full rounded-full bg-brand-gradient px-6 py-3.5 text-text-md font-semibold text-grey-950 shadow-lg transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            disabled={submitting}
+            className="mt-5 w-full rounded-full bg-brand-gradient px-6 py-3.5 text-text-md font-semibold text-grey-950 shadow-lg transition-transform enabled:hover:scale-[1.02] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
-            Enter
+            {submitting ? "Signing in…" : "Enter"}
           </button>
         </form>
 

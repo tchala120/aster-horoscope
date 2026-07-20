@@ -158,6 +158,21 @@
 .animate-twinkle {
   animation: twinkle 4s ease-in-out infinite;
 }
+/* Subtle brightness pulse for the background image itself — gentler than
+   the star twinkle (no scale/opacity swing) so the backdrop doesn't shrink
+   or wash out, just softly breathes. */
+@keyframes bg-twinkle {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.1);
+  }
+}
+.animate-bg-twinkle {
+  animation: bg-twinkle 6s ease-in-out infinite;
+}
 .animate-aurora {
   animation: aurora 12s ease-in-out infinite;
 }
@@ -215,14 +230,43 @@
   animation: reward-shine 2.8s ease-in-out infinite;
 }
 
+/* Falling star: a bright-headed trail that streaks across and fades, then
+   waits out the rest of its (long) cycle before streaking again. The angle
+   is set by a static rotation on the wrapper; this keyframe only slides the
+   trail along its own local axis so the two transforms don't fight. */
+@keyframes shooting-star {
+  0%,
+  92%,
+  100% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  16% {
+    transform: translateX(-38vmax);
+    opacity: 1;
+  }
+  18% {
+    transform: translateX(-40vmax);
+    opacity: 0;
+  }
+}
+.animate-shooting-star {
+  animation: shooting-star linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-twinkle,
+  .animate-bg-twinkle,
   .animate-aurora,
   .animate-aurora-slow,
   .animate-aurora-slow2,
   .animate-aura-pulse,
   .animate-reward-rays,
-  .animate-reward-shine {
+  .animate-reward-shine,
+  .animate-shooting-star {
     animation: none !important;
   }
 }

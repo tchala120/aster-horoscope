@@ -38,7 +38,7 @@ export function DailyDrawContainer() {
 
   if (game.status === "anon" || !game.daily) {
     return (
-      <AuthPanel error={game.error} onSubmit={(creds) => void game.login(creds)} />
+      <AuthPanel error={game.error} onSubmit={(creds) => game.login(creds)} />
     );
   }
 

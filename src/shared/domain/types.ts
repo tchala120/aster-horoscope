@@ -149,6 +149,8 @@ export interface LessonSummary extends Lesson {
   bookmarkCount: number;
   /** Live YouTube view count (videos only); null when unavailable or not a video. */
   videoViews: number | null;
+  /** Video duration in seconds (videos only); null when unavailable or not a video. */
+  videoDurationSeconds: number | null;
 }
 
 /** A comment on a lesson. */
