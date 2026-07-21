@@ -25,11 +25,14 @@ export function pickCard(state: DailyState, cardId: string): DailyState {
   };
 }
 
-/** Mark a card as rejected (returns to same spread). */
+/** Mark a card as rejected (returns to same spread). Clears `picked` too — a
+ *  rejected card's mission was declined, so it should fade out with the rest
+ *  of the un-chosen cards rather than still render as "the picked card"
+ *  (which, since this is persisted, would otherwise look stuck forever). */
 export function rejectCard(state: DailyState, cardId: string): DailyState {
   return {
     ...state,
-    spread: state.spread.map((c) => (c.cardId === cardId ? { ...c, rejected: true } : c)),
+    spread: state.spread.map((c) => (c.cardId === cardId ? { ...c, picked: false, rejected: true } : c)),
   };
 }
 

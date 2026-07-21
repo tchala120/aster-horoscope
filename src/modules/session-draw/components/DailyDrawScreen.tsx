@@ -72,7 +72,7 @@ export function DailyDrawScreen({
           </p>
         </div>
 
-        <div className="relative w-full max-w-4xl">
+        <div className="relative w-full max-w-[1200px]">
           {/* Soft brand halo behind the spread */}
           <div
             aria-hidden

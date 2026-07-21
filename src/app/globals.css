@@ -199,6 +199,22 @@
   animation: aura-pulse 3.2s ease-in-out infinite;
 }
 
+/* Slowly-rotating rainbow aura ring — a conic gradient spun behind an
+   element and blurred into a soft glow (no separate library needed for
+   this; same idea as e.g. DaisyUI's `aura-rainbow`, hand-rolled to match
+   this app's own animation conventions). */
+@keyframes aura-rainbow-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-aura-rainbow {
+  animation: aura-rainbow-spin 6s linear infinite;
+}
+
 /* Reward reveal ambience: slowly rotating light rays + a shine sweep across
    the medallion and CTA. Decorative; disabled under reduced motion. */
 @keyframes reward-rays {
@@ -264,6 +280,7 @@
   .animate-aurora-slow,
   .animate-aurora-slow2,
   .animate-aura-pulse,
+  .animate-aura-rainbow,
   .animate-reward-rays,
   .animate-reward-shine,
   .animate-shooting-star {

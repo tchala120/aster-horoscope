@@ -7,8 +7,8 @@ import {
 } from "@/shared";
 
 describe("shared constants", () => {
-  it("spread size is 10", () => {
-    expect(SPREAD_SIZE).toBe(10);
+  it("spread size is 20 (two rows of 10)", () => {
+    expect(SPREAD_SIZE).toBe(20);
   });
 
   it("difficulty windows match Easy=1 / Medium=3 / Hard=7 days", () => {

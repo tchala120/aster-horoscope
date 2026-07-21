@@ -3,8 +3,8 @@ import type { Difficulty, RewardType } from "../domain/types";
 /** App-wide fixed timezone for daily-reset boundaries (D3-3). */
 export const APP_TIMEZONE = "UTC";
 
-/** Number of cards in a daily spread (D3, US-003). */
-export const SPREAD_SIZE = 10;
+/** Number of cards in a daily spread (D3, US-003) — laid out as two rows of 10. */
+export const SPREAD_SIZE = 20;
 
 /** Difficulty time windows in days (Easy = within a day, Medium = 2-3, Hard = 1 week). */
 export const DIFFICULTY_WINDOW_DAYS: Record<Difficulty, number> = {

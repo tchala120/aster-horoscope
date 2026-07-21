@@ -52,7 +52,14 @@ export function DailyDrawContainer() {
         card={getCardById(reveal.cardId)}
         theme={reveal.theme}
         reducedMotion={reduced}
-        onDone={() => setReveal(null)}
+        onDone={() => {
+          setReveal(null);
+          // Reshuffle right away so the spread the Seeker lands back on never
+          // shows the just-completed card sitting there — no active mission
+          // at this point (it was cleared by the completion that got us
+          // here), so reroll is always safe to fire here.
+          void game.reroll();
+        }}
       />
     );
   } else if (game.lastReward) {

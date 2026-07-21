@@ -20,6 +20,8 @@ interface FeatureCard {
   glow: string; // "r,g,b"
   /** Scene illustration for the card's right side. Falls back to just the icon badge when omitted. */
   image?: string;
+  /** Card-specific decorative overlay, matched to that scene's own art. */
+  fx?: "fortune" | "school";
 }
 
 const RITUAL: FeatureCard = {
@@ -30,6 +32,7 @@ const RITUAL: FeatureCard = {
   glyph: "✦", // ✦
   glow: "51,204,173",
   image: "/landing-page/ritual.png",
+  fx: "fortune",
 };
 
 const COMMUNITY: FeatureCard = {
@@ -40,6 +43,7 @@ const COMMUNITY: FeatureCard = {
   glyph: "✎", // ✎
   glow: "124,77,255",
   image: "/landing-page/aster-school-mascot-3.png",
+  fx: "school",
 };
 
 const GAMES: FeatureCard[] = [
@@ -92,11 +96,15 @@ function CardIllustration({
   title,
   scale = 1,
   compact = false,
+  reduced,
+  fx,
 }: {
   image: string;
   title: string;
   scale?: number;
   compact?: boolean;
+  reduced: boolean;
+  fx?: "fortune" | "school";
 }) {
   return (
     <div
@@ -104,16 +112,116 @@ function CardIllustration({
       className={`relative z-30 hidden shrink-0 sm:block ${compact ? "w-36 md:w-44" : "w-64 md:w-80 lg:w-96"}`}
     >
       <div className={`absolute inset-x-0 bottom-0 overflow-hidden rounded-2xl ${compact ? "-top-6" : "-top-10"}`}>
-        <Image
-          src={image}
-          alt={title}
-          fill
-          sizes={compact ? "12rem" : "24rem"}
-          className={compact ? "object-contain object-center" : "object-contain object-right-bottom"}
-          style={scale !== 1 ? { transform: `scale(${scale})` } : undefined}
-        />
+        {/* fx overlays live inside the same scaled box as the art (rather than
+            as siblings of it) so a manual per-card `scale` still keeps them
+            lined up with the artwork underneath. */}
+        <div className="absolute inset-0" style={scale !== 1 ? { transform: `scale(${scale})` } : undefined}>
+          <Image
+            src={image}
+            alt={title}
+            fill
+            sizes={compact ? "12rem" : "24rem"}
+            className={compact ? "object-contain object-center" : "object-contain object-right-bottom"}
+          />
+          {fx === "fortune" && !reduced && (
+            <>
+              <FortuneGlassSparkle />
+              <FortuneCandleGlow />
+            </>
+          )}
+          {fx === "school" && !reduced && <SchoolStarGlow />}
+        </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Twinkles orbiting the crystal ball in the fortune-teller scene. Positions
+ * are eyeballed against ritual.png's own pixel coordinates (ball centered
+ * ~71%/65% of the 1536x1024 art) — decorative, so close-enough alignment
+ * across the responsive image box is fine.
+ */
+function FortuneGlassSparkle() {
+  const sparkles = [
+    { left: "64%", top: "57%", delay: 0 },
+    { left: "80%", top: "60%", delay: 1.1 },
+    { left: "72%", top: "77%", delay: 2.2 },
+  ];
+  return (
+    <>
+      {sparkles.map((s) => (
+        <span
+          key={s.left}
+          className="animate-twinkle absolute h-1.5 w-1.5 rounded-full bg-white"
+          style={{
+            left: s.left,
+            top: s.top,
+            boxShadow: "0 0 6px 2px rgba(255,255,255,0.9), 0 0 14px 4px rgba(168,139,250,0.65)",
+            animationDelay: `${s.delay}s`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * Warm pulsing halo over the candle flame in the fortune-teller scene.
+ * Position eyeballed against ritual.png's own pixel coordinates (flame
+ * centered ~33%/64% of the 1536x1024 art).
+ */
+function FortuneCandleGlow() {
+  return (
+    <span
+      className="animate-aura-pulse absolute rounded-full"
+      style={{
+        left: "32%",
+        top: "60%",
+        width: 46,
+        height: 46,
+        marginLeft: -23,
+        marginTop: -23,
+        background: "radial-gradient(circle, rgba(255,220,160,0.55), rgba(255,150,55,0.3) 40%, transparent 70%)",
+        filter: "blur(5px)",
+      }}
+    />
+  );
+}
+
+/**
+ * Warm glowing light over each floating star in the Aster School scene.
+ * Positions eyeballed against aster-school-mascot-3.png's own pixel
+ * coordinates (same 1536x1024 art dimensions as ritual.png).
+ */
+function SchoolStarGlow() {
+  const stars = [
+    { left: "25.7%", top: "14.6%", size: 34, delay: 0 },
+    { left: "86.3%", top: "22%", size: 34, delay: 0.6 },
+    { left: "30.8%", top: "50.1%", size: 26, delay: 1.2 },
+    { left: "33.7%", top: "80.1%", size: 22, delay: 1.8 },
+    { left: "84.9%", top: "55.7%", size: 36, delay: 2.4 },
+  ];
+  return (
+    <>
+      {stars.map((s) => (
+        <span
+          key={s.left + s.top}
+          className="animate-aura-pulse absolute rounded-full"
+          style={{
+            left: s.left,
+            top: s.top,
+            width: s.size,
+            height: s.size,
+            marginLeft: -s.size / 2,
+            marginTop: -s.size / 2,
+            background: "radial-gradient(circle, rgba(255,224,140,0.95), rgba(255,180,60,0.55) 45%, transparent 72%)",
+            filter: "blur(3px)",
+            animationDelay: `${s.delay}s`,
+          }}
+        />
+      ))}
+    </>
   );
 }
 
@@ -272,7 +380,14 @@ function FeatureRow({
           </span>
         </div>
         {card.image && (
-          <CardIllustration image={card.image} title={card.title} scale={imageScale} compact={compact} />
+          <CardIllustration
+            image={card.image}
+            title={card.title}
+            scale={imageScale}
+            compact={compact}
+            reduced={reduced}
+            fx={card.fx}
+          />
         )}
       </Link>
     </motion.div>

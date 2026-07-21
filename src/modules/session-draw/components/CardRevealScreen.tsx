@@ -30,18 +30,6 @@ export function CardRevealScreen({ card, theme, reducedMotion, onDone }: CardRev
       </p>
 
       <div className="relative flex items-center justify-center">
-        {/* Steady breathing aura behind the card */}
-        <span
-          aria-hidden
-          className={`pointer-events-none absolute -inset-12 rounded-full blur-3xl ${
-            reducedMotion ? "" : "animate-aura-pulse"
-          }`}
-          style={{
-            background:
-              "radial-gradient(circle, rgba(51,204,173,0.5), rgba(51,161,204,0.22) 45%, transparent 70%)",
-          }}
-        />
-
         {/* Burst of light synced to the flip reveal */}
         {!reducedMotion && (
           <motion.span
@@ -57,26 +45,42 @@ export function CardRevealScreen({ card, theme, reducedMotion, onDone }: CardRev
           />
         )}
 
-        <motion.div
-          initial={reducedMotion ? false : { opacity: 0, scale: 0.85, rotateY: -90 }}
-          animate={reducedMotion ? undefined : { opacity: 1, scale: 1, rotateY: 0 }}
-          transition={{ duration: durations.flip, ease: easings.out }}
-          style={{ transformPerspective: 1000 }}
-          className="relative aspect-[2/3] w-[21rem] max-w-[90vw] overflow-hidden rounded-2xl bg-grey-900 ring-1 ring-white/16 shadow-2xl"
-        >
-          {imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={card?.name ?? "Tarot card"}
-              fill
-              priority
-              className="object-cover"
-              sizes="21rem"
-            />
-          ) : (
-            <span aria-hidden className="block h-full w-full bg-brand-gradient" />
-          )}
-        </motion.div>
+        {/* Rainbow border ring: an oversized conic gradient, spun slowly and
+            clipped by this wrapper's rounded corners + overflow-hidden, so
+            only a thin ring shows right at the card's edge rather than a
+            diffuse halo around it. The 3px padding is what reveals that
+            ring — the card itself sits flush on top of everything else. */}
+        <div className="relative aspect-[2/3] w-[21rem] max-w-[90vw] overflow-hidden rounded-2xl p-[3px] shadow-2xl">
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute -inset-1/2 ${reducedMotion ? "" : "animate-aura-rainbow"}`}
+            style={{
+              background:
+                "conic-gradient(from 0deg, #ff3d81, #ff9d3d, #ffe93d, #3dffa1, #3dc8ff, #8a5dff, #ff3d81)",
+            }}
+          />
+
+          <motion.div
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.85, rotateY: -90 }}
+            animate={reducedMotion ? undefined : { opacity: 1, scale: 1, rotateY: 0 }}
+            transition={{ duration: durations.flip, ease: easings.out }}
+            style={{ transformPerspective: 1000 }}
+            className="relative h-full w-full overflow-hidden rounded-2xl bg-grey-900"
+          >
+            {imageUrl ? (
+              <Image
+                src={imageUrl}
+                alt={card?.name ?? "Tarot card"}
+                fill
+                priority
+                className="object-cover"
+                sizes="21rem"
+              />
+            ) : (
+              <span aria-hidden className="block h-full w-full bg-brand-gradient" />
+            )}
+          </motion.div>
+        </div>
 
         {/* Celebratory spark burst over the reveal */}
         {!reducedMotion && <Fireworks />}

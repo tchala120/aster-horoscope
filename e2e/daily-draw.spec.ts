@@ -13,7 +13,7 @@ test("register, draw, pick a card, and accept the mission", async ({ page }) => 
 
   // Draw the daily spread.
   await page.getByRole("button", { name: "Draw a Card" }).click();
-  await expect(page.getByLabel(/face down/)).toHaveCount(10);
+  await expect(page.getByLabel(/face down/)).toHaveCount(20);
 
   // Pick a card -> mission assigned -> accept.
   await page.getByLabel(/face down/).first().click();
