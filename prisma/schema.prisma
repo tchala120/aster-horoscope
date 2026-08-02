@@ -12,11 +12,13 @@ datasource db {
 
 /// A registered player. Passwords are stored hashed (never plaintext).
 model User {
-  id           String         @id @default(uuid())
-  username     String         @unique
-  passwordHash String
-  createdAt    DateTime       @default(now())
-  history      HistoryEntry[]
+  id            String         @id @default(uuid())
+  username      String         @unique
+  passwordHash  String
+  /// Linked EVM wallet address (lowercase), optional alternate login credential.
+  walletAddress String?        @unique
+  createdAt     DateTime       @default(now())
+  history       HistoryEntry[]
 
   @@map("users")
 }

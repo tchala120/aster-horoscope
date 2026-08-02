@@ -1,5 +1,5 @@
-import { MatchGame } from "@/modules/mini-game/MatchGame";
+import { MiniGamesHub } from "@/modules/mini-game/MiniGamesHub";
 
 export default function GamePage() {
-  return <MatchGame />;
+  return <MiniGamesHub />;
 }

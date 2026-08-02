@@ -6,6 +6,9 @@ import type {
   MissionResponse,
   PickRequest,
   SessionResponse,
+  WalletNonceRequest,
+  WalletNonceResponse,
+  WalletVerifyRequest,
 } from "@/shared";
 import { apiFetch } from "@/foundation/api/client";
 
@@ -15,6 +18,16 @@ export const gameApi = {
   login: (body: AuthRequest) =>
     apiFetch<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
   logout: () => apiFetch<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+  walletNonce: (body: WalletNonceRequest) =>
+    apiFetch<WalletNonceResponse>("/auth/wallet/nonce", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  walletLogin: (body: WalletVerifyRequest) =>
+    apiFetch<AuthResponse>("/auth/wallet/login", { method: "POST", body: JSON.stringify(body) }),
+  walletLink: (body: WalletVerifyRequest) =>
+    apiFetch<AuthResponse>("/auth/wallet/link", { method: "POST", body: JSON.stringify(body) }),
+  walletUnlink: () => apiFetch<{ ok: boolean }>("/auth/wallet", { method: "DELETE" }),
   getState: () => apiFetch<SessionResponse>("/sessions/me"),
   draw: () => apiFetch<DrawResponse>("/draws", { method: "POST" }),
   reroll: () => apiFetch<DrawResponse>("/draws/reroll", { method: "POST" }),

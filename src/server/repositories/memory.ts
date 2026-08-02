@@ -22,9 +22,10 @@ import type {
 class MemoryUserRepo implements UserRepo {
   private byId = new Map<string, UserRecord>();
   private byUsername = new Map<string, UserRecord>();
+  private byWalletAddress = new Map<string, UserRecord>();
 
   async create(username: string, passwordHash: string): Promise<UserRecord> {
-    const record: UserRecord = { id: randomUUID(), username, passwordHash };
+    const record: UserRecord = { id: randomUUID(), username, passwordHash, walletAddress: null };
     this.byId.set(record.id, record);
     this.byUsername.set(username.toLowerCase(), record);
     return record;
@@ -34,6 +35,17 @@ class MemoryUserRepo implements UserRepo {
   }
   async findById(id: string): Promise<UserRecord | null> {
     return this.byId.get(id) ?? null;
+  }
+  async findByWalletAddress(address: string): Promise<UserRecord | null> {
+    return this.byWalletAddress.get(address.toLowerCase()) ?? null;
+  }
+  async setWalletAddress(userId: string, address: string | null): Promise<UserRecord> {
+    const record = this.byId.get(userId);
+    if (!record) throw new Error(`Unknown user: ${userId}`);
+    if (record.walletAddress) this.byWalletAddress.delete(record.walletAddress);
+    record.walletAddress = address ? address.toLowerCase() : null;
+    if (record.walletAddress) this.byWalletAddress.set(record.walletAddress, record);
+    return record;
   }
 }
 

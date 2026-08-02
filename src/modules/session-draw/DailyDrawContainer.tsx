@@ -38,7 +38,11 @@ export function DailyDrawContainer() {
 
   if (game.status === "anon" || !game.daily) {
     return (
-      <AuthPanel error={game.error} onSubmit={(creds) => game.login(creds)} />
+      <AuthPanel
+        error={game.error}
+        onSubmit={(creds) => game.login(creds)}
+        onWalletLogin={(payload) => game.loginWithWallet(payload)}
+      />
     );
   }
 
@@ -113,7 +117,13 @@ export function DailyDrawContainer() {
           <div className="fixed left-4 top-4 z-40 sm:left-6 sm:top-6">
             <BackLink variant="chip" />
           </div>
-          <ProfileMenu username={game.session.username} onLogout={() => void game.logout()} />
+          <ProfileMenu
+            username={game.session.username}
+            onLogout={() => void game.logout()}
+            walletAddress={game.session.walletAddress}
+            onLinkWallet={(payload) => game.linkWallet(payload)}
+            onUnlinkWallet={() => void game.unlinkWallet()}
+          />
         </>
       ) : null}
       {screen}

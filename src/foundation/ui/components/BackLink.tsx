@@ -1,14 +1,14 @@
 import Link from "next/link";
 
 interface BackLinkProps {
-  /** Where "back" goes. Defaults to the game hub. */
+  /** Where "back" goes. Defaults to the home page. */
   href?: string;
   label?: string;
   /** "text" for an inline link, "chip" for a floating pill button. */
   variant?: "text" | "chip";
 }
 
-/** Back-navigation link with a ← chevron. Returns to the hub by default. */
+/** Back-navigation link with a ← chevron. Returns home by default. */
 export function BackLink({ href = "/", label = "Back", variant = "text" }: BackLinkProps) {
   const base =
     "inline-flex w-fit items-center gap-1.5 text-text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-aster-sky-400";

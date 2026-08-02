@@ -44,6 +44,8 @@ export interface SeekerSession {
   userId: string | null;
   /** Display name of the authenticated player (shown in the profile menu). */
   username: string;
+  /** Linked EVM wallet address (lowercase), or null if none linked. */
+  walletAddress: string | null;
   schemaVersion: number;
 }
 

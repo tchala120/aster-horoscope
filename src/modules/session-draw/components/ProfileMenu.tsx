@@ -2,14 +2,28 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import type { WalletVerifyRequest } from "@/shared";
+import { CoinBalanceChip } from "./CoinBalanceChip";
+import { WalletConnectButton } from "./WalletConnectButton";
 
 interface ProfileMenuProps {
   /** Logged-in player's display name. */
   username: string;
   onLogout: () => void;
+  /** The account's linked EVM wallet address, or null if none linked. */
+  walletAddress?: string | null;
+  /** Link a wallet to this account. Omit (with walletAddress) to hide wallet controls entirely. */
+  onLinkWallet?: (payload: WalletVerifyRequest) => Promise<unknown>;
+  onUnlinkWallet?: () => void;
   /** Controlled open state (e.g. driven by a sidebar "Profile" item). Falls back to internal state when omitted. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** "fixed" (default) pins to the top-right corner of the viewport; "inline" sits in normal flow, e.g. inside a header row. */
+  variant?: "fixed" | "inline";
+}
+
+function shortenAddress(address: string): string {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
 /**
@@ -17,7 +31,16 @@ interface ProfileMenuProps {
  * and opens a small menu with "Log out". Presentational — the parent owns auth.
  * Closes on outside click or Escape.
  */
-export function ProfileMenu({ username, onLogout, open: openProp, onOpenChange }: ProfileMenuProps) {
+export function ProfileMenu({
+  username,
+  onLogout,
+  walletAddress,
+  onLinkWallet,
+  onUnlinkWallet,
+  open: openProp,
+  onOpenChange,
+  variant = "fixed",
+}: ProfileMenuProps) {
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
   const setOpen = onOpenChange ?? setOpenState;
@@ -41,7 +64,15 @@ export function ProfileMenu({ username, onLogout, open: openProp, onOpenChange }
   }, [open, setOpen]);
 
   return (
-    <div ref={ref} className="fixed right-4 top-4 z-40 sm:right-6 sm:top-6">
+    <div
+      ref={ref}
+      className={
+        variant === "fixed"
+          ? "fixed right-4 top-4 z-40 flex items-center gap-2 sm:right-6 sm:top-6"
+          : "relative z-40 flex items-center gap-2"
+      }
+    >
+      {walletAddress ? <CoinBalanceChip address={walletAddress} /> : null}
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -81,7 +112,7 @@ export function ProfileMenu({ username, onLogout, open: openProp, onOpenChange }
         <div
           role="menu"
           aria-label="Account menu"
-          className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl bg-grey-gradient p-2 shadow-2xl ring-1 ring-white/8"
+          className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl bg-grey-gradient p-2 shadow-2xl ring-1 ring-white/8"
         >
           <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
             <span
@@ -95,6 +126,33 @@ export function ProfileMenu({ username, onLogout, open: openProp, onOpenChange }
               <p className="text-text-sm text-grey-400">Signed in</p>
             </div>
           </div>
+
+          {onLinkWallet || onUnlinkWallet ? (
+            <>
+              <div className="my-1 h-px bg-white/8" />
+              {walletAddress ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl px-3 py-2.5">
+                  <span className="truncate text-text-sm text-grey-300">
+                    {shortenAddress(walletAddress)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onUnlinkWallet?.()}
+                    className="shrink-0 text-text-sm font-medium text-grey-400 transition-colors hover:text-grey-200 focus:outline-none focus-visible:text-aster-teal-300"
+                  >
+                    Unlink
+                  </button>
+                </div>
+              ) : onLinkWallet ? (
+                <WalletConnectButton
+                  purpose="link"
+                  onVerified={onLinkWallet}
+                  label="Link wallet"
+                  className="w-full rounded-xl px-3 py-2.5 text-left text-text-sm font-medium text-grey-200 transition-colors enabled:hover:bg-white/8 disabled:opacity-60"
+                />
+              ) : null}
+            </>
+          ) : null}
 
           <div className="my-1 h-px bg-white/8" />
 
@@ -120,7 +178,7 @@ export function ProfileMenu({ username, onLogout, open: openProp, onOpenChange }
                 strokeLinejoin="round"
               />
             </svg>
-            Games hub
+            Home
           </Link>
 
           <Link

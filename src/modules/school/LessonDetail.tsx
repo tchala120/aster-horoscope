@@ -12,7 +12,7 @@ import { LessonTypeBadge } from "./components/LessonTypeBadge";
 import { MarkdownView } from "./components/MarkdownView";
 import { PdfViewer } from "./components/PdfViewer";
 import { ReactionBar } from "./components/ReactionBar";
-import { VideoLinkCard } from "./components/VideoLinkCard";
+import { VideoPlayer } from "./components/VideoPlayer";
 import { schoolApi } from "./state/school-api";
 
 type State =
@@ -61,8 +61,12 @@ export function LessonDetail({ id }: { id: string }) {
     <main className="relative flex flex-1 flex-col">
       <CelestialBackground />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 p-6">
-        <BackLink />
+      <div
+        className={`relative z-10 mx-auto flex w-full flex-1 flex-col gap-5 p-6 ${
+          state.status === "ready" && state.lesson.type === "video" ? "max-w-6xl" : "max-w-3xl"
+        }`}
+      >
+        <BackLink href={state.status === "ready" && state.lesson.type === "video" ? "/school" : undefined} />
 
         {state.status === "loading" && <p className="text-grey-400">Loading…</p>}
 
@@ -152,7 +156,7 @@ export function LessonDetail({ id }: { id: string }) {
                     fileName={lesson.pdfFileName ?? "document.pdf"}
                   />
                 ) : lesson.type === "video" ? (
-                  <VideoLinkCard key={lesson.videoUrl} url={lesson.videoUrl ?? ""} />
+                  <VideoPlayer key={lesson.videoUrl} url={lesson.videoUrl ?? ""} />
                 ) : (
                   <article className="rounded-2xl bg-grey-900/40 p-5 ring-1 ring-white/8 sm:p-6">
                     <MarkdownView>{lesson.content ?? ""}</MarkdownView>

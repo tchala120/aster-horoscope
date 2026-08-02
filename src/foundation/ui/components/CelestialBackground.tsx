@@ -98,7 +98,7 @@ export function CelestialBackground({ className = "" }: { className?: string }) 
   const reduced = useReducedMotion() ?? false;
 
   return (
-    <div aria-hidden className={`pointer-events-none absolute inset-0 overflow-hidden bg-grey-950 ${className}`}>
+    <div aria-hidden className={`pointer-events-none fixed inset-0 overflow-hidden bg-grey-950 ${className}`}>
       {/* Deep cosmic base: planets, shooting star, and galaxy swirl */}
       <Image src="/landing-page/bg.png" alt="" fill priority sizes="100vw" className="animate-bg-twinkle object-cover" />
       <div

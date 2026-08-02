@@ -14,7 +14,7 @@ export async function GET() {
     if (!user) {
       return jsonError(createError(ErrorCodes.AUTH_UNAUTHENTICATED, "Not authenticated.", 401));
     }
-    return jsonOk<AuthResponse>({ session: buildSession(userId, user.username) });
+    return jsonOk<AuthResponse>({ session: buildSession(userId, user.username, user.walletAddress) });
   } catch (e) {
     return handleError(e);
   }

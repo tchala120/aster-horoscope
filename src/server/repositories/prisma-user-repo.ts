@@ -2,7 +2,7 @@ import { getPrisma } from "../db/prisma";
 import type { UserRepo } from "./types";
 
 /** Only the columns we expose as UserRecord. */
-const userSelect = { id: true, username: true, passwordHash: true } as const;
+const userSelect = { id: true, username: true, passwordHash: true, walletAddress: true } as const;
 
 /**
  * PostgreSQL-backed user store (Prisma). Usernames are normalized to lowercase
@@ -27,5 +27,20 @@ export const prismaUserRepo: UserRepo = {
 
   findById(id) {
     return getPrisma().user.findUnique({ where: { id }, select: userSelect });
+  },
+
+  findByWalletAddress(address) {
+    return getPrisma().user.findUnique({
+      where: { walletAddress: address.toLowerCase() },
+      select: userSelect,
+    });
+  },
+
+  setWalletAddress(userId, address) {
+    return getPrisma().user.update({
+      where: { id: userId },
+      data: { walletAddress: address ? address.toLowerCase() : null },
+      select: userSelect,
+    });
   },
 };

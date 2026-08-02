@@ -16,12 +16,16 @@ export interface UserRecord {
   id: string;
   username: string;
   passwordHash: string;
+  /** Linked EVM wallet address (lowercase), or null if none linked. */
+  walletAddress: string | null;
 }
 
 export interface UserRepo {
   create(username: string, passwordHash: string): Promise<UserRecord>;
   findByUsername(username: string): Promise<UserRecord | null>;
   findById(id: string): Promise<UserRecord | null>;
+  findByWalletAddress(address: string): Promise<UserRecord | null>;
+  setWalletAddress(userId: string, address: string | null): Promise<UserRecord>;
 }
 
 export interface StateRepo {

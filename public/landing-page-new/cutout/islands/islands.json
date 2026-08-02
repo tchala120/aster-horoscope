@@ -1,0 +1,56 @@
+[
+  {
+    "file": "island-0.png",
+    "x": 285,
+    "y": 295,
+    "w": 195,
+    "h": 268,
+    "canvasW": 1448,
+    "canvasH": 1086
+  },
+  {
+    "file": "island-1.png",
+    "x": 965,
+    "y": 313,
+    "w": 215,
+    "h": 222,
+    "canvasW": 1448,
+    "canvasH": 1086
+  },
+  {
+    "file": "island-2.png",
+    "x": 599,
+    "y": 358,
+    "w": 149,
+    "h": 132,
+    "canvasW": 1448,
+    "canvasH": 1086
+  },
+  {
+    "file": "island-3.png",
+    "x": 542,
+    "y": 519,
+    "w": 258,
+    "h": 225,
+    "canvasW": 1448,
+    "canvasH": 1086
+  },
+  {
+    "file": "island-4.png",
+    "x": 186,
+    "y": 531,
+    "w": 143,
+    "h": 153,
+    "canvasW": 1448,
+    "canvasH": 1086
+  },
+  {
+    "file": "island-5.png",
+    "x": 1047,
+    "y": 582,
+    "w": 126,
+    "h": 137,
+    "canvasW": 1448,
+    "canvasH": 1086
+  }
+]

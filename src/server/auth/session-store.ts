@@ -12,10 +12,13 @@ export const SESSION_COOKIE = "aster_session";
  * login lived in one instance's memory and was missing on the next request's
  * instance, silently logging users out ("can't log in").
  */
-function signingKey(): string {
-  // SESSION_SECRET if provided; otherwise derive a stable per-environment key
-  // from DATABASE_URL (already a secret, present in prod + local). Never commit
-  // a real secret — this keeps the key out of the repo.
+/**
+ * SESSION_SECRET if provided; otherwise derive a stable per-environment key
+ * from DATABASE_URL (already a secret, present in prod + local). Never commit
+ * a real secret — this keeps the key out of the repo. Shared with
+ * wallet-nonce.ts so both token kinds sign against the same server secret.
+ */
+export function signingKey(): string {
   return process.env.SESSION_SECRET || process.env.DATABASE_URL || "aster-dev-insecure-secret";
 }
 

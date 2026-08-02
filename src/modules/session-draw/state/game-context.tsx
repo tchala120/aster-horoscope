@@ -9,7 +9,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AuthRequest, DailyState, Mission, RewardOutcome, SeekerSession } from "@/shared";
+import type {
+  AuthRequest,
+  DailyState,
+  Mission,
+  RewardOutcome,
+  SeekerSession,
+  WalletVerifyRequest,
+} from "@/shared";
 import { gameApi } from "./api";
 
 type Status = "loading" | "authed" | "anon";
@@ -28,6 +35,12 @@ interface GameState {
 
 interface GameContextValue extends GameState {
   login: (creds: AuthRequest) => Promise<boolean>;
+  /** Log in as whichever account this wallet is already linked to. */
+  loginWithWallet: (payload: WalletVerifyRequest) => Promise<boolean>;
+  /** Link a wallet address to the currently signed-in account. */
+  linkWallet: (payload: WalletVerifyRequest) => Promise<boolean>;
+  /** Remove the wallet address linked to the currently signed-in account. */
+  unlinkWallet: () => Promise<boolean>;
   logout: () => Promise<void>;
   draw: () => Promise<void>;
   /** Reshuffle today's spread during selection (does not consume a new day). */
@@ -93,6 +106,42 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [loadState],
   );
 
+  const loginWithWallet = useCallback(
+    async (payload: WalletVerifyRequest) => {
+      const res = await gameApi.walletLogin(payload);
+      if (!res.ok) {
+        setState((s) => ({ ...s, error: res.error.message }));
+        return false;
+      }
+      await loadState();
+      return true;
+    },
+    [loadState],
+  );
+
+  const linkWallet = useCallback(
+    async (payload: WalletVerifyRequest) => {
+      const res = await gameApi.walletLink(payload);
+      if (!res.ok) {
+        setState((s) => ({ ...s, error: res.error.message }));
+        return false;
+      }
+      await loadState();
+      return true;
+    },
+    [loadState],
+  );
+
+  const unlinkWallet = useCallback(async () => {
+    const res = await gameApi.walletUnlink();
+    if (!res.ok) {
+      setState((s) => ({ ...s, error: res.error.message }));
+      return false;
+    }
+    await loadState();
+    return true;
+  }, [loadState]);
+
   const draw = useCallback(async () => {
     const res = await gameApi.draw();
     if (res.ok) setState((s) => ({ ...s, daily: res.value.daily, error: null }));
@@ -141,6 +190,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       login,
+      loginWithWallet,
+      linkWallet,
+      unlinkWallet,
       logout: async () => {
         await gameApi.logout();
         setState({ ...initialState, status: "anon" });
@@ -153,7 +205,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       complete: (id) => runAction(id, "complete"),
       clearReward: () => setState((s) => ({ ...s, lastReward: null })),
     }),
-    [state, login, draw, reroll, pick, runAction],
+    [state, login, loginWithWallet, linkWallet, unlinkWallet, draw, reroll, pick, runAction],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

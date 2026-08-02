@@ -33,7 +33,7 @@ interface Filters {
 export function SchoolFeed() {
   const [qInput, setQInput] = useState("");
   const [tagInput, setTagInput] = useState("");
-  const [applied, setApplied] = useState<Filters>({ q: "", tag: "", group: "reading" });
+  const [applied, setApplied] = useState<Filters>({ q: "", tag: "", group: "video" });
 
   const [lessons, setLessons] = useState<LessonSummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -106,11 +106,7 @@ export function SchoolFeed() {
     <main className="relative flex flex-1 flex-col">
       <CelestialBackground />
 
-      <div
-        className={`relative z-10 mx-auto flex w-full flex-1 flex-col gap-6 p-6 ${
-          applied.group === "video" ? "max-w-6xl" : "max-w-4xl"
-        }`}
-      >
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-6">
         <BackLink />
 
         <header className="flex flex-wrap items-end justify-between gap-4">
@@ -132,7 +128,7 @@ export function SchoolFeed() {
         </header>
 
         <div className="inline-flex w-fit gap-1 rounded-full bg-grey-900/50 p-1 ring-1 ring-white/8">
-          {(["reading", "video"] as const).map((g) => (
+          {(["video", "reading"] as const).map((g) => (
             <button
               key={g}
               type="button"

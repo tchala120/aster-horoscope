@@ -3,12 +3,17 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
-import type { AuthRequest } from "@/shared";
+import type { AuthRequest, WalletVerifyRequest } from "@/shared";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
+import { WalletConnectButton } from "./WalletConnectButton";
 
 interface AuthPanelProps {
   error?: string | null;
   onSubmit: (creds: AuthRequest) => Promise<unknown>;
+  /** Log in as whichever account has this wallet linked. Omit to hide the wallet option. */
+  onWalletLogin?: (payload: WalletVerifyRequest) => Promise<unknown>;
+  /** False when embedding in a modal that already provides its own backdrop/sizing. */
+  fullBleed?: boolean;
 }
 
 /** Decorative fanned tarot cards for the welcome hero. */
@@ -95,7 +100,7 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 /** Presentational, welcoming login screen (whitelist-only — no self-signup). Parent owns auth logic. */
-export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
+export function AuthPanel({ error, onSubmit, onWalletLogin, fullBleed = true }: AuthPanelProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -103,14 +108,20 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
   const reduced = useReducedMotion() ?? false;
 
   return (
-    <div className="relative flex flex-1 items-center justify-center p-6">
-      <CelestialBackground />
+    <div
+      className={
+        fullBleed
+          ? "relative flex flex-1 items-center justify-center p-6"
+          : "relative w-full max-w-sm"
+      }
+    >
+      {fullBleed && <CelestialBackground />}
 
       <motion.div
         initial={reduced ? false : { opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 w-full max-w-sm"
+        className={fullBleed ? "relative z-10 w-full max-w-sm" : "relative z-10 w-full"}
       >
         {/* Fanned tarot hero — cards gently levitate, sparkles twinkle, glow breathes */}
         <div className="relative mx-auto mb-6 flex h-32 items-end justify-center" aria-hidden>
@@ -249,6 +260,22 @@ export function AuthPanel({ error, onSubmit }: AuthPanelProps) {
             {submitting ? "Signing in…" : "Enter"}
           </button>
         </form>
+
+        {onWalletLogin ? (
+          <div className="mt-4">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/8" />
+              <span className="text-text-sm text-grey-500">or</span>
+              <div className="h-px flex-1 bg-white/8" />
+            </div>
+            <WalletConnectButton
+              purpose="login"
+              onVerified={onWalletLogin}
+              label="Connect Wallet"
+              className="mt-4 w-full rounded-full bg-grey-900/70 px-6 py-3.5 text-text-md font-semibold text-grey-50 ring-1 ring-white/12 transition-colors enabled:hover:bg-grey-800/80 disabled:opacity-60"
+            />
+          </div>
+        ) : null}
 
         <p className="mt-5 text-center text-text-sm text-grey-400">
           Don&apos;t have an account? Contact an admin for access.

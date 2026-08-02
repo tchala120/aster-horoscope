@@ -23,6 +23,25 @@ export interface AuthResponse {
   session: SeekerSession;
 }
 
+/** POST /api/v1/auth/wallet/nonce — request a sign-message challenge. */
+export interface WalletNonceRequest {
+  address: string;
+  purpose: "login" | "link";
+}
+
+/** Response to a wallet nonce request: the message to sign + a token to send back with it. */
+export interface WalletNonceResponse {
+  token: string;
+  message: string;
+}
+
+/** POST /api/v1/auth/wallet/login or /link — the signed challenge. */
+export interface WalletVerifyRequest {
+  address: string;
+  signature: string;
+  token: string;
+}
+
 /** GET /api/v1/sessions/me — full server-authoritative state. */
 export interface SessionResponse {
   session: SeekerSession;
