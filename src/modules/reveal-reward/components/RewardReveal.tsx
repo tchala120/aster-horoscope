@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import type { RewardOutcome } from "@/shared";
 import { Fireworks } from "@/foundation/ui/components/Fireworks";
-import { playRewardFanfare } from "@/foundation/ui/sound";
 import { useRewardDisplay } from "../state/use-reward-display";
 
 interface RewardRevealProps {
@@ -86,7 +85,7 @@ export function RewardReveal({ reward, reducedMotion = false, onClose }: RewardR
   const display = useRewardDisplay(reward);
   const tier = TIERS[display.rarity];
   const granted = display.value !== null;
-  const glyph = display.unit === "percent" ? "%" : "\u2726"; // ✦
+  const glyph = "\u2726"; // ✦
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -97,13 +96,6 @@ export function RewardReveal({ reward, reducedMotion = false, onClose }: RewardR
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-
-  // Triumphant fanfare when the reward appears — grander for rarer rewards.
-  // Skipped for reduced-motion users, matching the hover-chime convention.
-  useEffect(() => {
-    if (reducedMotion) return;
-    playRewardFanfare(display.rarityRatio);
-  }, [reducedMotion, display.rarityRatio]);
 
   return (
     <motion.div
@@ -118,7 +110,9 @@ export function RewardReveal({ reward, reducedMotion = false, onClose }: RewardR
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0"
-        style={{ background: `radial-gradient(60% 50% at 50% 42%, rgba(${tier.glow},0.28), transparent 70%)` }}
+        style={{
+          background: `radial-gradient(60% 50% at 50% 42%, rgba(${tier.glow},0.28), transparent 70%)`,
+        }}
       />
 
       <div className="relative my-auto" onClick={(e) => e.stopPropagation()}>
@@ -154,7 +148,9 @@ export function RewardReveal({ reward, reducedMotion = false, onClose }: RewardR
             <span
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 h-24"
-              style={{ background: `linear-gradient(180deg, rgba(${tier.glow},0.18), transparent)` }}
+              style={{
+                background: `linear-gradient(180deg, rgba(${tier.glow},0.18), transparent)`,
+              }}
             />
 
             <div className="relative flex flex-col items-center gap-4">
@@ -178,7 +174,9 @@ export function RewardReveal({ reward, reducedMotion = false, onClose }: RewardR
                 <span
                   aria-hidden
                   className={`absolute -inset-3 rounded-full blur-xl ${reducedMotion ? "" : "animate-aura-pulse"}`}
-                  style={{ background: `radial-gradient(circle, rgba(${tier.glow},0.6), transparent 70%)` }}
+                  style={{
+                    background: `radial-gradient(circle, rgba(${tier.glow},0.6), transparent 70%)`,
+                  }}
                 />
                 <div
                   className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full"
@@ -217,13 +215,9 @@ export function RewardReveal({ reward, reducedMotion = false, onClose }: RewardR
                 {granted ? (
                   <span className="text-[2.75rem] font-bold leading-none tracking-tight sm:text-[3.4rem]">
                     <CountUp to={display.value as number} reducedMotion={reducedMotion} />
-                    {display.unit === "percent" ? (
-                      "%"
-                    ) : (
-                      <span className="ml-1.5 align-baseline text-heading-sm font-bold sm:text-heading-md">
-                        ASTR
-                      </span>
-                    )}
+                    <span className="ml-1.5 align-baseline text-heading-sm font-bold sm:text-heading-md">
+                      HP
+                    </span>
                   </span>
                 ) : (
                   <span className="text-heading-lg font-bold">{display.headline}</span>

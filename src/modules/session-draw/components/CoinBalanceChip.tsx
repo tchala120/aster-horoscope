@@ -47,6 +47,7 @@ export function CoinBalanceChip({ address }: CoinBalanceChipProps) {
     data: balance,
     isLoading,
     isFetching,
+    isError: isBalanceError,
     refetch,
   } = useReadContract({
     address: HAPPY_COIN_ADDRESS,
@@ -55,16 +56,22 @@ export function CoinBalanceChip({ address }: CoinBalanceChipProps) {
     args: [account],
     chainId: sepolia.id,
   });
-  const { data: decimals, refetch: refetchDecimals } = useReadContract({
+  const {
+    data: decimals,
+    isError: isDecimalsError,
+    refetch: refetchDecimals,
+  } = useReadContract({
     address: HAPPY_COIN_ADDRESS,
     abi: ERC20_ABI,
     functionName: "decimals",
     chainId: sepolia.id,
   });
 
+  const hasError = isBalanceError || isDecimalsError;
+
   return (
     <div
-      title="Happy Coin balance"
+      title={hasError ? "Couldn't load balance — tap refresh to retry" : "Happy Coin balance"}
       className="flex items-center gap-1.5 rounded-full bg-grey-900/70 py-1 pl-1 pr-1.5 ring-1 ring-white/8 backdrop-blur"
     >
       <Image
@@ -74,10 +81,12 @@ export function CoinBalanceChip({ address }: CoinBalanceChipProps) {
         height={34}
         className="h-[34px] w-[34px] shrink-0"
       />
-      <span className="text-text-sm font-semibold text-grey-100">
-        {isLoading || balance === undefined
-          ? "…"
-          : formatBalance(balance, decimals ?? 18)}
+      <span className={`text-text-sm font-semibold ${hasError ? "text-red-400" : "text-grey-100"}`}>
+        {hasError
+          ? "—"
+          : isLoading || balance === undefined
+            ? "…"
+            : formatBalance(balance, decimals ?? 18)}
       </span>
       <button
         type="button"

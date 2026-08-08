@@ -24,7 +24,7 @@ function rewardLabel(entry: HistoryEntry): string {
   if (!entry.rewardGranted || entry.rewardType === null || entry.rewardValue === null) {
     return "No reward";
   }
-  return entry.rewardType === "discount" ? `${entry.rewardValue}% off` : `${entry.rewardValue} ASTR`;
+  return `${entry.rewardValue} HP`;
 }
 
 /** One completed-mission record: card thumbnail, quest, reward, and date. */
@@ -33,7 +33,6 @@ export function HistoryRow({ entry }: { entry: HistoryEntry }) {
   const quest = MISSION_CATALOG.find((m) => m.featureId === entry.featureRef);
   const imageUrl = card?.artwork[themeFor(entry.id || entry.cardRef)];
   const rewarded = entry.rewardGranted && entry.rewardValue !== null;
-  const isDiscount = entry.rewardType === "discount";
   const date = new Date(entry.completedAt).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
@@ -41,9 +40,7 @@ export function HistoryRow({ entry }: { entry: HistoryEntry }) {
   });
 
   const rewardChip = rewarded
-    ? isDiscount
-      ? "bg-aster-sky-500/16 text-aster-sky-300"
-      : "bg-aster-teal-500/16 text-aster-teal-300"
+    ? "bg-aster-teal-500/16 text-aster-teal-300"
     : "bg-white/8 text-grey-400";
 
   return (
@@ -66,9 +63,7 @@ export function HistoryRow({ entry }: { entry: HistoryEntry }) {
       {/* Card + quest */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="truncate text-text-md font-semibold text-grey-50">
-            {card?.name ?? "Card"}
-          </p>
+          <p className="truncate text-text-md font-semibold text-grey-50">{card?.name ?? "Card"}</p>
           <span className="shrink-0 rounded-full bg-white/8 px-2 py-0.5 text-text-sm text-grey-300">
             {DIFFICULTY_LABEL[entry.difficulty]}
           </span>

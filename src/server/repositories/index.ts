@@ -1,9 +1,19 @@
-import type { AssetRepo, HistoryRepo, MatchScoreRepo, SchoolRepo, UserRepo } from "./types";
+import type {
+  AssetRepo,
+  HistoryRepo,
+  MatchScoreRepo,
+  PlaylistRepo,
+  SchoolRepo,
+  UserRepo,
+  WerewolfRoomRepo,
+} from "./types";
 import {
   memoryHistoryRepo,
   memoryMatchScoreRepo,
   memoryUserRepo,
+  memoryWerewolfRoomRepo,
   missionRepo,
+  questEventRepo,
   rewardRepo,
   stateRepo,
 } from "./memory";
@@ -11,7 +21,9 @@ import { prismaAssetRepo } from "./prisma-asset-repo";
 import { prismaUserRepo } from "./prisma-user-repo";
 import { prismaHistoryRepo } from "./prisma-history-repo";
 import { prismaMatchScoreRepo } from "./prisma-match-score-repo";
+import { prismaPlaylistRepo } from "./prisma-playlist-repo";
 import { prismaSchoolRepo } from "./prisma-school-repo";
+import { prismaWerewolfRoomRepo } from "./prisma-werewolf-room-repo";
 
 /**
  * User + history storage: PostgreSQL (Prisma) when DATABASE_URL is configured,
@@ -23,11 +35,20 @@ const useDatabase = Boolean(process.env.DATABASE_URL) && process.env.VITEST !== 
 
 export const userRepo: UserRepo = useDatabase ? prismaUserRepo : memoryUserRepo;
 export const historyRepo: HistoryRepo = useDatabase ? prismaHistoryRepo : memoryHistoryRepo;
-export const matchScoreRepo: MatchScoreRepo = useDatabase ? prismaMatchScoreRepo : memoryMatchScoreRepo;
+export const matchScoreRepo: MatchScoreRepo = useDatabase
+  ? prismaMatchScoreRepo
+  : memoryMatchScoreRepo;
 
 // Aster School requires a database (PDF blobs + relational engagement data);
 // it always uses the Prisma store.
 export const schoolRepo: SchoolRepo = prismaSchoolRepo;
+export const playlistRepo: PlaylistRepo = prismaPlaylistRepo;
 export const assetRepo: AssetRepo = prismaAssetRepo;
 
-export { stateRepo, missionRepo, rewardRepo };
+// Werewolf online rooms: DB-backed when configured so rooms survive across
+// serverless instances; falls back to in-memory for local dev without Docker.
+export const werewolfRoomRepo: WerewolfRoomRepo = useDatabase
+  ? prismaWerewolfRoomRepo
+  : memoryWerewolfRoomRepo;
+
+export { stateRepo, missionRepo, rewardRepo, questEventRepo };

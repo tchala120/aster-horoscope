@@ -12,7 +12,9 @@ import { injected } from "wagmi/connectors";
 export const wagmiConfig = createConfig({
   chains: [sepolia],
   connectors: [injected()],
-  transports: { [sepolia.id]: http() },
+  // Falls back to viem's shared public Sepolia RPC when unset, which is prone
+  // to rate-limiting; set NEXT_PUBLIC_SEPOLIA_RPC_URL for a dedicated endpoint.
+  transports: { [sepolia.id]: http(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL) },
 });
 
 /** ERC-20 token shown as the coin balance next to the profile menu, and staked on /staking. */

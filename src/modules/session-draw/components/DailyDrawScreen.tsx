@@ -4,7 +4,6 @@ import { type ReactNode } from "react";
 import type { Spread } from "@/shared";
 import { Countdown } from "@/foundation/ui/components/Countdown";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
-import { primeAudio } from "@/foundation/ui/sound";
 import { FannedSpread } from "./FannedSpread";
 
 interface DailyDrawScreenProps {
@@ -47,10 +46,7 @@ export function DailyDrawScreen({
         </p>
         <button
           type="button"
-          onClick={() => {
-            primeAudio();
-            onDraw();
-          }}
+          onClick={onDraw}
           className="mt-2 rounded-full bg-brand-gradient px-9 py-3.5 text-text-md font-semibold text-grey-950 shadow-[0_10px_40px_-8px_rgba(51,204,173,0.6)] transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-aster-sky-300"
         >
           Draw a Card
@@ -68,7 +64,8 @@ export function DailyDrawScreen({
             <span className="bg-brand-gradient bg-clip-text text-transparent">Pick your card</span>
           </h2>
           <p className="max-w-md text-text-md text-grey-400">
-            Breathe, hold your question close, and let intuition draw you to the card meant for today.
+            Breathe, hold your question close, and let intuition draw you to the card meant for
+            today.
           </p>
         </div>
 
@@ -118,7 +115,9 @@ export function DailyDrawScreen({
           The veil is drawn
         </span>
         <h2 className="text-heading-lg font-bold drop-shadow-[0_2px_24px_rgba(51,161,204,0.3)]">
-          <span className="bg-brand-gradient bg-clip-text text-transparent">Come back tomorrow</span>
+          <span className="bg-brand-gradient bg-clip-text text-transparent">
+            Come back tomorrow
+          </span>
         </h2>
         <p className="text-text-md text-grey-400">Your next draw unlocks in</p>
         <Countdown targetIso={resetAt} />

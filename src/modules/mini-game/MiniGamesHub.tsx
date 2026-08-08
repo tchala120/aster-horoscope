@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { AmbientMusic } from "@/foundation/ui/components/AmbientMusic";
 import { BackLink } from "@/foundation/ui/components/BackLink";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
 
@@ -53,6 +52,15 @@ const MINI_GAMES: MiniGame[] = [
     glyph: "♠",
     glow: "255,90,138",
   },
+  {
+    href: "/werewolf",
+    title: "Werewolves of Aster Village",
+    desc: "A hotseat game of hidden roles for 5-10. Root out the wolves before they devour the village.",
+    cta: "Gather the village",
+    glyph: "☾",
+    glow: "96,165,250",
+    image: "/werewolf-game/werewolf.png",
+  },
 ];
 
 /**
@@ -67,7 +75,13 @@ function GameIllustration({ image, title }: { image: string; title: string }) {
     <div aria-hidden className="relative z-30 hidden w-36 shrink-0 sm:block md:w-44">
       <div className="absolute inset-x-0 -top-6 bottom-0 overflow-hidden rounded-2xl">
         <div className="absolute inset-0" style={{ transform: "scale(1.5)" }}>
-          <Image src={image} alt={title} fill sizes="12rem" className="object-contain object-center" />
+          <Image
+            src={image}
+            alt={title}
+            fill
+            sizes="12rem"
+            className="object-contain object-center"
+          />
         </div>
       </div>
     </div>
@@ -81,7 +95,6 @@ export function MiniGamesHub() {
   return (
     <main className="relative flex flex-1 flex-col">
       <CelestialBackground />
-      <AmbientMusic src="/sound/loffy.mp3" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-6 py-16 lg:p-10">
         <BackLink />

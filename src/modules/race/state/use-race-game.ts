@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { playClip, playNote, playRewardFanfare, preloadClip, primeAudio } from "@/foundation/ui/sound";
 import {
   type DifficultyId,
   type EffectKind,
@@ -40,10 +39,6 @@ const LAND_MS = 420; // pause on the landing space before its effect
 const EFFECT_MS = 720; // pause to read the effect before the next turn
 const SPIN_MS = 80; // die-face cycle speed while spinning
 
-// Event mood clips (public/sound). Good events cheer, bad events groan.
-const HAPPY_SOUND = "/sound/happy.mp3";
-const SAD_SOUND = "/sound/sad.mp3";
-
 function makePlayer(i: number, name?: string): Player {
   return {
     id: `p${i}`,
@@ -75,7 +70,10 @@ function leaderAmongOthers(players: Player[], self: number): number {
 }
 
 /** Advance the turn, skipping (and clearing) any player flagged to miss a turn. */
-function advanceTurn(players: Player[], from: number): { players: Player[]; nextTurn: number; skipped: string[] } {
+function advanceTurn(
+  players: Player[],
+  from: number,
+): { players: Player[]; nextTurn: number; skipped: string[] } {
   const next = players.map((p) => ({ ...p }));
   const skipped: string[] = [];
   let idx = from;
@@ -144,19 +142,14 @@ export function useRaceGame() {
   /** Reshuffle where the events sit on the board (keeps players in place). */
   function shuffle() {
     if (phase !== "playing" || spinning || resolving) return;
-    primeAudio();
     setBoard(buildBoard(difficulty));
     setEvent(null);
-    playNote(500, 0.07, 0.16);
     setMessage(`Events reshuffled! ${players[turn].name}, tap Roll.`);
   }
 
   function start() {
     clearTimers();
     clearSpin();
-    primeAudio();
-    preloadClip(HAPPY_SOUND);
-    preloadClip(SAD_SOUND);
     const pl = players.map((p, i) => ({
       ...p,
       name: p.name.trim() || `Player ${i + 1}`,
@@ -174,8 +167,6 @@ export function useRaceGame() {
     setPhase("playing");
     setMessage(`${pl[0].name}, tap Roll to spin the die.`);
   }
-
-  const playStep = () => playNote(430, 0.04, 0.07);
 
   /** Walk the roller from its current space and resolve the space it stops on. */
   function resolve(d: number) {
@@ -215,7 +206,12 @@ export function useRaceGame() {
       afterEffect = base.map((p, i) => (i === t ? { ...p, pos: landing, skipNext: true } : p));
     }
 
-    const eventInfo: RaceEvent = { rank: landing, name: space.name, blurb: space.blurb, effect: space.effect };
+    const eventInfo: RaceEvent = {
+      rank: landing,
+      name: space.name,
+      blurb: space.blurb,
+      effect: space.effect,
+    };
 
     setResolving(true);
     setMessage(`${roller.name} rolled ${d}.`);
@@ -232,7 +228,6 @@ export function useRaceGame() {
       setPhase("over");
       setResolving(false);
       setMessage(`${roller.name} reaches the summit!`);
-      playRewardFanfare(1);
     };
 
     const advance = () => {
@@ -250,7 +245,6 @@ export function useRaceGame() {
       const last = pos === landing;
       at(pos === start + 1 ? START_MS : STEP_MS, () => {
         setPlayers(snapshot);
-        playStep();
         if (last) {
           setMessage(
             won1
@@ -272,7 +266,6 @@ export function useRaceGame() {
     if (space.effect === "forward" || space.effect === "back") {
       at(LAND_MS, () => {
         setEvent(eventInfo);
-        playClip(space.effect === "forward" ? HAPPY_SOUND : SAD_SOUND);
       });
       const dir = space.effect === "forward" ? 1 : -1;
       let pos = landing;
@@ -281,7 +274,6 @@ export function useRaceGame() {
         const snapshot = withRollerAt(pos);
         at(STEP_MS, () => {
           setPlayers(snapshot);
-          playStep();
         });
       }
       at(EFFECT_MS, () => (won2 ? finishWin() : advance()));
@@ -289,20 +281,17 @@ export function useRaceGame() {
       at(LAND_MS, () => {
         setPlayers(afterEffect);
         setEvent(eventInfo);
-        playClip(HAPPY_SOUND);
       });
       at(EFFECT_MS, advance);
     } else if (skipSelf) {
       at(LAND_MS, () => {
         setPlayers(afterEffect);
         setEvent(eventInfo);
-        playClip(SAD_SOUND);
       });
       at(EFFECT_MS, advance);
     } else if (extraTurn) {
       at(LAND_MS, () => {
         setEvent(eventInfo);
-        playClip(HAPPY_SOUND);
       });
       at(EFFECT_MS, () => {
         setResolving(false);
@@ -317,13 +306,11 @@ export function useRaceGame() {
   /** Single button: start the die spinning, then stop it to reveal the roll. */
   function press() {
     if (phase !== "playing" || resolving) return;
-    primeAudio();
     setEvent(null);
 
     if (!spinning) {
       setSpinning(true);
       setMessage(`Stop the die, ${players[turn].name}!`);
-      playNote(600, 0.05, 0.09);
       spinRef.current = setInterval(() => {
         setDie(1 + Math.floor(Math.random() * 6));
       }, SPIN_MS);
@@ -334,7 +321,6 @@ export function useRaceGame() {
     setSpinning(false);
     const d = rollDie();
     setDie(d);
-    playNote(520, 0.09, 0.18);
     resolve(d);
   }
 

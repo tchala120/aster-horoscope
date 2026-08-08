@@ -7,6 +7,7 @@ import {
   listLessons,
   resolveAuthorName,
 } from "@/server/services/school-service";
+import { questEventRepo } from "@/server/repositories";
 import { handleError, jsonOk, requireUserId } from "@/server/http";
 import { serviceError } from "@/server/service-error";
 
@@ -22,7 +23,12 @@ export async function GET(req: Request) {
       limit: Number(url.searchParams.get("limit")) || undefined,
       q: url.searchParams.get("q") ?? undefined,
       tag: url.searchParams.get("tag") ?? undefined,
-      types: typeParam ? typeParam.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+      types: typeParam
+        ? typeParam
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : undefined,
     });
     return jsonOk<LessonsResponse>(res);
   } catch (e) {
@@ -73,8 +79,14 @@ export async function POST(req: Request) {
 
     const body = (await req.json().catch(() => null)) as LessonInput | null;
     if (!body) throw serviceError(ErrorCodes.VALIDATION, "Invalid request body.", 400);
-    const lesson =
-      body.type === "video" ? await createVideo(userId, name, body) : await createArticle(userId, name, body);
+    let lesson;
+    if (body.type === "video") {
+      lesson = await createVideo(userId, name, body);
+    } else {
+      lesson = await createArticle(userId, name, body);
+      // Publishing an article satisfies this user's "write an article" quest signal.
+      questEventRepo.record(userId, "write_article");
+    }
     return jsonOk<LessonResponse>({ lesson }, 201);
   } catch (e) {
     return handleError(e);

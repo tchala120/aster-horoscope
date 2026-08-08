@@ -1,6 +1,6 @@
 import type { MatchScoresResponse, SubmitMatchScoreRequest } from "@/shared";
 import { ErrorCodes, createError } from "@/shared";
-import { matchScoreRepo, userRepo } from "@/server/repositories";
+import { matchScoreRepo, questEventRepo, userRepo } from "@/server/repositories";
 import { handleError, jsonError, jsonOk, requireUserId } from "@/server/http";
 
 /** Always read fresh from the DB (never statically cached). */
@@ -35,6 +35,9 @@ export async function POST(req: Request) {
     }
 
     const created = await matchScoreRepo.add({ name: user.username, moves });
+    // A submission only happens on a client-detected win — record it as this
+    // user's "play a game" quest signal (gates mission completion).
+    questEventRepo.record(userId, "play_game");
     const scores = await matchScoreRepo.top(TOP_LIMIT);
     return jsonOk<MatchScoresResponse>({ scores, yourScoreId: created.id });
   } catch (e) {

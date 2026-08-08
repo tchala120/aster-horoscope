@@ -7,10 +7,13 @@ import type {
   LessonType,
   MatchScore,
   Mission,
+  MissionFeatureId,
+  Playlist,
   ReactionType,
   RewardOutcome,
   RewardType,
 } from "@/shared";
+import type { RoomState } from "@/modules/werewolf/core/room";
 
 export interface UserRecord {
   id: string;
@@ -56,6 +59,19 @@ export interface NewHistoryEntry {
   rewardType: RewardType | null;
   rewardValue: number | null;
   rewardGranted: boolean;
+  /** On-chain HAPPY_COIN transfer hash for this reward, or null if not paid out. */
+  payoutTxHash: string | null;
+}
+
+/**
+ * Records real-activity signals (a game win, an article published, a video
+ * watched) that gate mission completion. One pending event per (user, quest
+ * type) — a fresh event overwrites any unconsumed prior one.
+ */
+export interface QuestEventRepo {
+  record(userId: string, featureId: MissionFeatureId): void;
+  /** True (and consumes the event) if one exists at/after `sinceIso`. */
+  consume(userId: string, featureId: MissionFeatureId, sinceIso: string | null): boolean;
 }
 
 export interface HistoryRepo {
@@ -149,4 +165,74 @@ export interface SchoolRepo {
   toggleReaction(lessonId: string, userId: string, type: ReactionType): Promise<void>;
   reactionCounts(lessonId: string): Promise<{ likes: number; bookmarks: number }>;
   userReactions(lessonId: string, userId: string): Promise<ReactionType[]>;
+}
+
+// ---- Aster School: Playlists ------------------------------------------------
+
+export interface NewPlaylist {
+  authorId: string;
+  authorName: string;
+  title: string;
+  description: string | null;
+  coverImageUrl: string | null;
+}
+
+export interface PlaylistPatch {
+  title: string;
+  description: string | null;
+  coverImageUrl: string | null;
+}
+
+export interface PlaylistListQuery {
+  page: number;
+  limit: number;
+  /** Restrict to one author's playlists (e.g. for an "add to my playlist" picker). */
+  authorId?: string;
+}
+
+/** Aggregate data for a playlist card: how many items it has, and its first video. */
+export interface PlaylistSummaryData {
+  itemCount: number;
+  firstLesson: Lesson | null;
+}
+
+/** One playlist item joined with its lesson, in play order. */
+export interface PlaylistItemRecord {
+  id: string;
+  playlistId: string;
+  position: number;
+  lesson: Lesson;
+}
+
+/** Curated, ordered playlists of video lessons. */
+export interface PlaylistRepo {
+  createPlaylist(input: NewPlaylist): Promise<Playlist>;
+  updatePlaylist(id: string, patch: PlaylistPatch): Promise<Playlist>;
+  deletePlaylist(id: string): Promise<void>;
+  getPlaylist(id: string): Promise<Playlist | null>;
+  listPlaylists(query: PlaylistListQuery): Promise<{ playlists: Playlist[]; total: number }>;
+  /** Item count + cover lesson keyed by playlist id (missing ids default to empty). */
+  summaryDataFor(playlistIds: string[]): Promise<Map<string, PlaylistSummaryData>>;
+
+  listItems(playlistId: string): Promise<PlaylistItemRecord[]>;
+  hasItem(playlistId: string, lessonId: string): Promise<boolean>;
+  /** Appends the lesson at the end of the playlist's current order. */
+  addItem(playlistId: string, lessonId: string): Promise<void>;
+  removeItem(playlistId: string, lessonId: string): Promise<void>;
+  /** Rewrites item positions to match this full ordered list of lesson ids. */
+  reorderItems(playlistId: string, lessonIds: string[]): Promise<void>;
+}
+
+// ---- Werewolf online rooms --------------------------------------------------
+
+/** Online Werewolf game rooms, keyed by their shareable join code. */
+export interface WerewolfRoomRepo {
+  create(state: RoomState): Promise<RoomState>;
+  getByCode(code: string): Promise<RoomState | null>;
+  /** Overwrites the room's state (last-write-wins; traffic per room is tiny). */
+  save(state: RoomState): Promise<RoomState>;
+  /** Most recently updated rooms, for the "open rooms" browser — filtered/capped by the caller. */
+  listRecent(limit: number): Promise<RoomState[]>;
+  /** Permanently removes the room. No-op if it's already gone. */
+  deleteByCode(code: string): Promise<void>;
 }

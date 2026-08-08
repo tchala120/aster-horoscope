@@ -2,20 +2,34 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AddToPlaylistPanel } from "./AddToPlaylistPanel";
 import { KebabIcon } from "./icons";
 import { schoolApi } from "../state/school-api";
 
 interface LessonOptionsMenuProps {
   lessonId: string;
   onDeleted: (lessonId: string) => void;
+  /** Show Edit/Delete — only the lesson's author. */
+  isOwner?: boolean;
+  /** Show "Add to playlist" — any signed-in viewer, video lessons only. */
+  showAddToPlaylist?: boolean;
 }
 
+type View = "menu" | "playlist";
+
 /**
- * Owner-only "⋮" menu for a lesson card — Edit / Delete without leaving the feed.
- * Closes on outside click or Escape (same pattern as session-draw's ProfileMenu).
+ * "⋮" menu for a lesson card — Edit / Delete for the owner, "Add to playlist"
+ * for any signed-in viewer of a video. Closes on outside click or Escape
+ * (same pattern as session-draw's ProfileMenu).
  */
-export function LessonOptionsMenu({ lessonId, onDeleted }: LessonOptionsMenuProps) {
+export function LessonOptionsMenu({
+  lessonId,
+  onDeleted,
+  isOwner = true,
+  showAddToPlaylist = false,
+}: LessonOptionsMenuProps) {
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<View>("menu");
   const [deleting, setDeleting] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -34,6 +48,13 @@ export function LessonOptionsMenu({ lessonId, onDeleted }: LessonOptionsMenuProp
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  const toggleOpen = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen((o) => !o);
+    setView("menu");
+  };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -54,11 +75,7 @@ export function LessonOptionsMenu({ lessonId, onDeleted }: LessonOptionsMenuProp
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setOpen((o) => !o);
-        }}
+        onClick={toggleOpen}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Lesson options"
@@ -67,30 +84,62 @@ export function LessonOptionsMenu({ lessonId, onDeleted }: LessonOptionsMenuProp
         <KebabIcon />
       </button>
 
-      {open ? (
+      {open && view === "menu" ? (
         <div
           role="menu"
           aria-label="Lesson options"
           onClick={(e) => e.stopPropagation()}
-          className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-xl bg-grey-gradient p-1.5 shadow-2xl ring-1 ring-white/10"
+          className="absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-xl bg-grey-gradient p-1.5 shadow-2xl ring-1 ring-white/10"
         >
-          <Link
-            href={`/school/${lessonId}/edit`}
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className="block rounded-lg px-3 py-2 text-text-sm font-medium text-grey-200 transition-colors hover:bg-white/8"
-          >
-            Edit
-          </Link>
+          {isOwner ? (
+            <>
+              <Link
+                href={`/school/${lessonId}/edit`}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className="block rounded-lg px-3 py-2 text-text-sm font-medium text-grey-200 transition-colors hover:bg-white/8"
+              >
+                Edit
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="block w-full rounded-lg px-3 py-2 text-left text-text-sm font-medium text-grey-200 transition-colors hover:bg-white/8 hover:text-red-400 disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </>
+          ) : null}
+          {showAddToPlaylist ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => setView("playlist")}
+              className="block w-full rounded-lg px-3 py-2 text-left text-text-sm font-medium text-grey-200 transition-colors hover:bg-white/8"
+            >
+              Add to playlist
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {open && view === "playlist" ? (
+        <div
+          role="menu"
+          aria-label="Add to playlist"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-0 top-full z-20 mt-1 w-72 overflow-hidden rounded-xl bg-grey-gradient p-2.5 shadow-2xl ring-1 ring-white/10"
+        >
           <button
             type="button"
-            role="menuitem"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="block w-full rounded-lg px-3 py-2 text-left text-text-sm font-medium text-grey-200 transition-colors hover:bg-white/8 hover:text-red-400 disabled:opacity-50"
+            onClick={() => setView("menu")}
+            className="mb-1.5 flex items-center gap-1 text-text-sm font-semibold text-grey-400 hover:text-grey-100"
           >
-            {deleting ? "Deleting…" : "Delete"}
+            ← Back
           </button>
+          <AddToPlaylistPanel lessonId={lessonId} />
         </div>
       ) : null}
     </div>

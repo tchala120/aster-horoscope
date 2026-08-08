@@ -53,5 +53,13 @@ export function generateReward(
 ): RewardOutcome {
   const entry = pickRewardType(rng);
   const value = pickRewardValue(entry, rng);
-  return { id, missionRef, granted: true, rewardType: entry.type, value };
+  return {
+    id,
+    missionRef,
+    granted: true,
+    rewardType: entry.type,
+    value,
+    payoutTxHash: null,
+    payoutError: null,
+  };
 }

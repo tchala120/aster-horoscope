@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { MatchScore } from "@/shared";
-import { AmbientMusic } from "@/foundation/ui/components/AmbientMusic";
 import { BackLink } from "@/foundation/ui/components/BackLink";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
 import { Fireworks } from "@/foundation/ui/components/Fireworks";
@@ -59,7 +58,6 @@ export function MatchGame() {
   return (
     <main className="relative flex flex-1 flex-col">
       <CelestialBackground />
-      <AmbientMusic src="/sound/adventure.mp3" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 p-6">
         <BackLink />
@@ -128,7 +126,9 @@ export function MatchGame() {
                 <p className="text-text-sm font-semibold uppercase tracking-[0.2em] text-aster-teal-400">
                   Reading complete
                 </p>
-                <h2 className="mt-1 text-heading-lg font-bold text-grey-50">You matched them all</h2>
+                <h2 className="mt-1 text-heading-lg font-bold text-grey-50">
+                  You matched them all
+                </h2>
                 <p className="mt-2 text-text-md text-grey-300">
                   Cleared in <span className="font-bold text-grey-50">{moves}</span> moves.
                 </p>

@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { AmbientMusic } from "@/foundation/ui/components/AmbientMusic";
 import { BackLink } from "@/foundation/ui/components/BackLink";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
 import { Fireworks } from "@/foundation/ui/components/Fireworks";
@@ -74,7 +73,10 @@ function effectLabel(effect: EffectKind): string {
   }
 }
 
-const COUNT_OPTIONS = Array.from({ length: MAX_PLAYERS - MIN_PLAYERS + 1 }, (_, i) => MIN_PLAYERS + i);
+const COUNT_OPTIONS = Array.from(
+  { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
+  (_, i) => MIN_PLAYERS + i,
+);
 
 /** Illustrated event cards (public/snake-game) — one per effect. */
 const EVENT_IMAGES: Partial<Record<EffectKind, string>> = {
@@ -116,14 +118,24 @@ function AdventureDecor({ reduced }: { reduced: boolean }) {
       {/* Procedural rock grain */}
       <svg className="absolute inset-0 h-full w-full opacity-[0.18] mix-blend-overlay">
         <filter id="rockGrain">
-          <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="3" seed="11" stitchTiles="stitch" />
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.72"
+            numOctaves="3"
+            seed="11"
+            stitchTiles="stitch"
+          />
           <feColorMatrix type="saturate" values="0" />
         </filter>
         <rect width="100%" height="100%" filter="url(#rockGrain)" />
       </svg>
 
       {/* Weathered cracks running across the stone */}
-      <svg className="absolute inset-0 h-full w-full opacity-40" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <svg
+        className="absolute inset-0 h-full w-full opacity-40"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+      >
         <g stroke="rgba(0,0,0,0.42)" strokeWidth="0.35" fill="none" strokeLinejoin="round">
           <path d="M0,24 L15,27 L23,21 L40,31 L52,27" />
           <path d="M100,58 L85,64 L73,58 L60,69 L49,63" />
@@ -147,7 +159,17 @@ function AdventureDecor({ reduced }: { reduced: boolean }) {
 }
 
 /** A player pawn rendered as a mini tarot card that magic-moves between cells. */
-function Pawn({ player, seat, active, reduced }: { player: Player; seat: number; active: boolean; reduced: boolean }) {
+function Pawn({
+  player,
+  seat,
+  active,
+  reduced,
+}: {
+  player: Player;
+  seat: number;
+  active: boolean;
+  reduced: boolean;
+}) {
   return (
     <motion.div
       layoutId={player.id}
@@ -212,7 +234,8 @@ function BoardCell({
           className="absolute inset-0 flex flex-col items-center justify-center rounded-lg"
           style={{
             background: "linear-gradient(155deg, #6b5a43 0%, #4a3e2f 100%)",
-            boxShadow: "inset 0 1.5px 0 rgba(255,220,170,0.2), inset 0 -3px 5px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.35)",
+            boxShadow:
+              "inset 0 1.5px 0 rgba(255,220,170,0.2), inset 0 -3px 5px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.35)",
           }}
         >
           <span aria-hidden className="text-[13px] text-[#ffcf8a]">
@@ -242,7 +265,10 @@ function BoardCell({
               "inset 0 1.5px 0 rgba(255,235,205,0.14), inset 0 -3px 5px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.35)",
           }}
         >
-          <span className="text-text-sm font-bold text-[#cbbaa0]" style={{ textShadow: "0 1px 1px rgba(0,0,0,0.6)" }}>
+          <span
+            className="text-text-sm font-bold text-[#cbbaa0]"
+            style={{ textShadow: "0 1px 1px rgba(0,0,0,0.6)" }}
+          >
             {index}
           </span>
         </div>
@@ -258,12 +284,23 @@ function BoardCell({
 
   return (
     <div className="relative aspect-square" title={`${index} · ${space.name}`}>
-      <div className="absolute inset-0 overflow-hidden rounded-xl bg-[#15110c]" style={{ boxShadow: ring }}>
-        <Image src={spaceImage(space.effect, isGoal) ?? WIN_IMAGE} alt={space.name} fill sizes="160px" className="object-contain" />
+      <div
+        className="absolute inset-0 overflow-hidden rounded-xl bg-[#15110c]"
+        style={{ boxShadow: ring }}
+      >
+        <Image
+          src={spaceImage(space.effect, isGoal) ?? WIN_IMAGE}
+          alt={space.name}
+          fill
+          sizes="160px"
+          className="object-contain"
+        />
         {isGoal && !reduced && (
           <motion.div
             className="absolute inset-0"
-            style={{ background: "radial-gradient(circle, rgba(255,196,75,0.45), transparent 70%)" }}
+            style={{
+              background: "radial-gradient(circle, rgba(255,196,75,0.45), transparent 70%)",
+            }}
             animate={{ opacity: [0.25, 0.7, 0.25] }}
             transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
           />
@@ -287,8 +324,27 @@ function BoardCell({
 
 export function FoolsRace() {
   const reduced = useReducedMotion() ?? false;
-  const { phase, playerCount, players, turn, die, spinning, resolving, message, winner, event, difficulty, board, setCount, setName, setDifficulty, shuffle, start, press, reset } =
-    useRaceGame();
+  const {
+    phase,
+    playerCount,
+    players,
+    turn,
+    die,
+    spinning,
+    resolving,
+    message,
+    winner,
+    event,
+    difficulty,
+    board,
+    setCount,
+    setName,
+    setDifficulty,
+    shuffle,
+    start,
+    press,
+    reset,
+  } = useRaceGame();
 
   const ev = event
     ? {
@@ -302,7 +358,6 @@ export function FoolsRace() {
   return (
     <main className="relative flex flex-1 flex-col">
       <CelestialBackground />
-      <AmbientMusic src="/sound/idea.mp3" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 p-6">
         <BackLink />
@@ -313,8 +368,9 @@ export function FoolsRace() {
           </p>
           <h1 className="mt-1 text-heading-lg font-bold text-grey-50">The Fool&apos;s Race</h1>
           <p className="mt-2 text-text-md text-grey-400">
-            Race up the trail. First to <span className="font-semibold text-aster-teal-300">the summit</span> wins
-            &mdash; but the path loves to meddle.
+            Race up the trail. First to{" "}
+            <span className="font-semibold text-aster-teal-300">the summit</span> wins &mdash; but
+            the path loves to meddle.
           </p>
         </header>
 
@@ -341,12 +397,22 @@ export function FoolsRace() {
             <div className="flex items-center justify-center gap-3">
               <div
                 className="relative aspect-[2/3] w-8 overflow-hidden rounded-md"
-                style={{ boxShadow: `0 0 0 2px ${players[turn].color}, 0 0 14px ${players[turn].color}` }}
+                style={{
+                  boxShadow: `0 0 0 2px ${players[turn].color}, 0 0 14px ${players[turn].color}`,
+                }}
               >
-                <Image src={players[turn].image} alt="" fill sizes="32px" className="object-cover" />
+                <Image
+                  src={players[turn].image}
+                  alt=""
+                  fill
+                  sizes="32px"
+                  className="object-cover"
+                />
               </div>
               <div className="text-left">
-                <p className="text-heading-sm font-bold leading-tight text-grey-50">{players[turn].name}</p>
+                <p className="text-heading-sm font-bold leading-tight text-grey-50">
+                  {players[turn].name}
+                </p>
                 <p className="text-text-sm leading-tight text-grey-400">{players[turn].cardName}</p>
               </div>
             </div>
@@ -355,7 +421,10 @@ export function FoolsRace() {
                 Breaks out to 1.1x on large screens where there's room. */}
             <div
               className="relative overflow-hidden rounded-2xl p-2 ring-1 ring-[#7a6a54]/45 sm:p-3 lg:-ml-[5%] lg:w-[110%]"
-              style={{ background: "radial-gradient(125% 100% at 50% -10%, #4b4038 0%, #2c251e 52%, #15110c 100%)" }}
+              style={{
+                background:
+                  "radial-gradient(125% 100% at 50% -10%, #4b4038 0%, #2c251e 52%, #15110c 100%)",
+              }}
             >
               <AdventureDecor reduced={reduced} />
               <div className="relative grid grid-cols-6 gap-1.5 sm:gap-2">
@@ -409,7 +478,11 @@ export function FoolsRace() {
                         ? { rotate: [0, -10, 8, -5, 0], scale: [1, 1.08, 1] }
                         : { rotate: 0, scale: 1 }
                 }
-                transition={spinning ? { rotate: { repeat: Infinity, duration: 0.45, ease: "linear" } } : { duration: 0.5 }}
+                transition={
+                  spinning
+                    ? { rotate: { repeat: Infinity, duration: 0.45, ease: "linear" } }
+                    : { duration: 0.5 }
+                }
               >
                 <DieFace value={die ?? 1} />
               </motion.div>
@@ -448,12 +521,16 @@ export function FoolsRace() {
             initial={reduced ? { opacity: 0 } : { opacity: 0, y: -20, scale: 0.92 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, y: -12, scale: 0.96 }}
-            transition={reduced ? { duration: 0.12 } : { type: "spring", stiffness: 380, damping: 26 }}
+            transition={
+              reduced ? { duration: 0.12 } : { type: "spring", stiffness: 380, damping: 26 }
+            }
             className="pointer-events-none fixed left-1/2 top-20 z-40 w-[min(92vw,22rem)] -translate-x-1/2"
           >
             <div
               className="flex items-center gap-3 rounded-2xl bg-grey-900/95 p-3 backdrop-blur"
-              style={{ boxShadow: `0 0 0 1.5px rgba(${ev.glow},0.7), 0 12px 40px -12px rgba(${ev.glow},0.85)` }}
+              style={{
+                boxShadow: `0 0 0 1.5px rgba(${ev.glow},0.7), 0 12px 40px -12px rgba(${ev.glow},0.85)`,
+              }}
             >
               <div
                 className="relative aspect-[5/7] w-12 shrink-0 overflow-hidden rounded-lg bg-grey-950"
@@ -483,14 +560,24 @@ export function FoolsRace() {
           <div className="relative z-10 w-full max-w-sm rounded-3xl bg-grey-gradient px-8 py-7 text-center ring-1 ring-white/10">
             <div
               className="relative mx-auto aspect-[2/3] w-24 overflow-hidden rounded-xl"
-              style={{ boxShadow: `0 0 0 2px ${players[winner].color}, 0 0 30px ${players[winner].color}` }}
+              style={{
+                boxShadow: `0 0 0 2px ${players[winner].color}, 0 0 30px ${players[winner].color}`,
+              }}
             >
-              <Image src={players[winner].image} alt={players[winner].cardName} fill sizes="96px" className="object-cover" />
+              <Image
+                src={players[winner].image}
+                alt={players[winner].cardName}
+                fill
+                sizes="96px"
+                className="object-cover"
+              />
             </div>
             <p className="mt-4 text-text-sm font-semibold uppercase tracking-[0.2em] text-aster-teal-400">
               The summit is reached
             </p>
-            <h2 className="mt-1 text-heading-lg font-bold text-grey-50">{players[winner].name} wins!</h2>
+            <h2 className="mt-1 text-heading-lg font-bold text-grey-50">
+              {players[winner].name} wins!
+            </h2>
             <div className="mt-5 flex justify-center gap-3">
               <button
                 type="button"
@@ -534,7 +621,9 @@ function SetupPanel({
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col gap-6 rounded-3xl bg-grey-gradient px-7 py-8 ring-1 ring-white/10">
       <div className="text-center">
-        <p className="text-text-sm font-semibold uppercase tracking-[0.2em] text-aster-teal-400">Gather the seekers</p>
+        <p className="text-text-sm font-semibold uppercase tracking-[0.2em] text-aster-teal-400">
+          Gather the seekers
+        </p>
         <h2 className="mt-1 text-heading-md font-bold text-grey-50">How many players?</h2>
         <p className="mt-1 text-text-sm text-grey-400">Pass one device around the table.</p>
       </div>
@@ -583,7 +672,9 @@ function SetupPanel({
             );
           })}
         </div>
-        <p className="mt-2 text-center text-[11px] text-grey-500">{getDifficulty(difficulty).tagline}</p>
+        <p className="mt-2 text-center text-[11px] text-grey-500">
+          {getDifficulty(difficulty).tagline}
+        </p>
       </div>
 
       {/* Name each player (their pawn card is shown alongside) */}

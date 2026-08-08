@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { Mission } from "@/shared";
 import { Countdown } from "@/foundation/ui/components/Countdown";
 import { MISSION_CATALOG } from "@/data/mission-catalog";
@@ -27,8 +28,17 @@ export function MissionPanel({ mission, onAccept, onReject, onComplete }: Missio
         <p className="text-text-sm font-semibold uppercase tracking-widest text-aster-teal-400">
           {difficultyLabel[mission.difficulty]}
         </p>
-        <h2 className="mt-2 text-heading-lg font-bold text-grey-50">{entry?.feature ?? "Mission"}</h2>
-        <p className="mt-3 text-text-md text-grey-300">{entry?.action ?? "Complete your mission."}</p>
+        <h2 className="mt-2 text-heading-lg font-bold text-grey-50">
+          {entry?.feature ?? "Mission"}
+        </h2>
+        <p className="mt-3 text-text-md text-grey-300">
+          {entry?.action ?? "Complete your mission."}
+        </p>
+        {mission.status === "active" ? (
+          <p className="mt-1 text-text-sm text-grey-500">
+            We&apos;ll check that you actually did it before granting the reward.
+          </p>
+        ) : null}
 
         {mission.status === "active" && mission.deadline ? (
           <p className="mt-4 text-text-sm text-grey-400">
@@ -41,12 +51,7 @@ export function MissionPanel({ mission, onAccept, onReject, onComplete }: Missio
             <>
               <button
                 type="button"
-                onClick={() => {
-                  // Open the task page synchronously (within the click) so the
-                  // browser doesn't block it, then accept the mission.
-                  if (entry?.link) window.open(entry.link, "_blank", "noopener,noreferrer");
-                  onAccept(mission.id);
-                }}
+                onClick={() => onAccept(mission.id)}
                 className="flex-1 rounded-full bg-brand-gradient px-5 py-2.5 text-text-md font-semibold text-grey-950 transition-transform hover:scale-[1.02]"
               >
                 Accept
@@ -62,14 +67,12 @@ export function MissionPanel({ mission, onAccept, onReject, onComplete }: Missio
           ) : (
             <>
               {entry?.link ? (
-                <a
+                <Link
                   href={entry.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="flex-1 rounded-full px-5 py-2.5 text-center text-text-md font-semibold text-grey-200 ring-1 ring-white/16 transition-colors hover:bg-white/8"
                 >
-                  Open task ↗
-                </a>
+                  Go do it →
+                </Link>
               ) : null}
               <button
                 type="button"

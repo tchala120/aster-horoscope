@@ -273,6 +273,497 @@
   animation: shooting-star linear infinite;
 }
 
+/* Tech HUD chrome (used by staking's TechCard): a faint circuit grid,
+   a scanning highlight sweeping the top edge, and a slowly spinning
+   dashed orbit ring for asset icons. */
+.bg-tech-grid {
+  background-image:
+    linear-gradient(rgba(71, 212, 180, 0.6) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(71, 212, 180, 0.6) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+@keyframes tech-scan {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(420%);
+  }
+}
+.animate-tech-scan {
+  animation: tech-scan 3.6s ease-in-out infinite;
+}
+@keyframes orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-orbit {
+  animation: orbit-spin 14s linear infinite;
+}
+.animate-orbit-reverse {
+  animation: orbit-spin 10s linear infinite reverse;
+}
+@keyframes status-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(71, 212, 180, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(71, 212, 180, 0);
+  }
+}
+.animate-status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* Falling snow (used by the Werewolf room list page). Horizontal drift + fade
+   keep it from looking like a rigid straight-line rain. */
+@keyframes snow-fall {
+  0% {
+    transform: translateY(-10vh) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(50vh) translateX(14px);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) translateX(-10px);
+    opacity: 0;
+  }
+}
+.animate-snow-fall {
+  animation: snow-fall linear infinite;
+}
+
+/* Shared carved-metal treatment for the Werewolf campfire lobby. */
+.werewolf-ancient-panel {
+  position: relative;
+  border: 1px solid rgba(120, 70, 29, 0.72);
+  border-radius: 4px;
+  background:
+    linear-gradient(135deg, rgba(255, 210, 128, 0.035), transparent 34%),
+    linear-gradient(180deg, rgba(13, 19, 24, 0.96), rgba(5, 8, 11, 0.94));
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 221, 153, 0.07),
+    0 12px 32px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+}
+.werewolf-ancient-panel::before,
+.werewolf-ancient-panel::after {
+  content: "";
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+}
+.werewolf-ancient-panel::before {
+  left: 4px;
+  top: 4px;
+  border-left: 1px solid rgba(217, 164, 82, 0.55);
+  border-top: 1px solid rgba(217, 164, 82, 0.55);
+}
+.werewolf-ancient-panel::after {
+  right: 4px;
+  bottom: 4px;
+  border-right: 1px solid rgba(217, 164, 82, 0.4);
+  border-bottom: 1px solid rgba(217, 164, 82, 0.4);
+}
+.werewolf-ancient-heading {
+  font-family: var(--font-serif);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: rgba(234, 217, 182, 0.86);
+}
+
+/* A single atmospheric foundation for every Werewolf route and transient state. */
+.werewolf-world-shell {
+  isolation: isolate;
+  min-height: 100dvh;
+  color: #ddd2c0;
+  background: #05080b;
+}
+.werewolf-world-shell::after {
+  content: "";
+  position: fixed;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 48%, transparent 28%, rgba(2, 4, 7, 0.38) 100%),
+    linear-gradient(90deg, rgba(176, 103, 34, 0.025), transparent 20%, transparent 80%, rgba(176, 103, 34, 0.025));
+}
+.werewolf-room-list-root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+.werewolf-entry-backdrop {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background-color: #05080b;
+  background-image: url("/werewolf-game/system/werewolf-landing-page.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+.werewolf-room-ledger {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid #5d3b20;
+  border-radius: 5px;
+  background:
+    linear-gradient(135deg, rgba(218, 167, 88, 0.055), transparent 22%),
+    radial-gradient(circle at 50% -30%, rgba(170, 101, 35, 0.16), transparent 52%),
+    linear-gradient(180deg, rgba(17, 20, 22, 0.985), rgba(4, 6, 8, 0.985));
+  box-shadow:
+    inset 0 0 0 2px #080706,
+    inset 0 0 0 5px rgba(121, 75, 35, 0.36),
+    inset 0 1px 0 6px rgba(224, 178, 102, 0.08),
+    inset 0 -1px 0 6px rgba(35, 18, 8, 0.7),
+    0 18px 42px rgba(0, 0, 0, 0.62);
+}
+.werewolf-room-ledger::before {
+  content: none;
+}
+.werewolf-room-ledger::after {
+  content: none;
+}
+.werewolf-ledger-header {
+  position: relative;
+  border-bottom: 1px solid rgba(142, 84, 35, 0.7);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 11px, rgba(255, 220, 160, 0.012) 12px 13px),
+    linear-gradient(90deg, transparent, rgba(134, 77, 34, 0.12) 20%, rgba(134, 77, 34, 0.12) 80%, transparent),
+    linear-gradient(180deg, rgba(35, 33, 31, 0.96), rgba(11, 12, 13, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(240, 194, 115, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.9),
+    inset 0 -3px 0 rgba(92, 52, 22, 0.22),
+    0 5px 14px rgba(0, 0, 0, 0.3);
+}
+.werewolf-ledger-header::before,
+.werewolf-ledger-header::after {
+  content: "";
+  position: absolute;
+  bottom: -3px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(180, 116, 51, 0.64);
+  background: radial-gradient(circle at 38% 35%, #d19a53 0 10%, #5a3218 28%, #160d08 72%);
+  box-shadow: 0 1px 3px #000;
+  transform: rotate(45deg);
+}
+.werewolf-ledger-header::before { left: 0.75rem; }
+.werewolf-ledger-header::after { right: 0.75rem; }
+.werewolf-room-ledger table tbody tr:not(:last-child) > td {
+  box-shadow: inset 0 -1px 0 rgba(77, 42, 19, 0.45);
+}
+
+/* Ancient metal frame — pure CSS, no image assets. A thicker forged-metal border
+   plus four corner brackets with a rivet at each tip. */
+.werewolf-metal-frame {
+  overflow: visible;
+  border: 3px solid #6b4423;
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 2px #0a0605,
+    inset 0 0 0 5px rgba(148, 96, 42, 0.4),
+    inset 0 0 0 7px rgba(0, 0, 0, 0.65),
+    inset 0 2px 0 8px rgba(230, 186, 110, 0.14),
+    inset 0 -2px 0 8px rgba(20, 10, 5, 0.82),
+    0 20px 46px rgba(0, 0, 0, 0.65);
+}
+.werewolf-frame-corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  z-index: 5;
+}
+.werewolf-frame-corner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.werewolf-frame-corner::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f0cf95 0 20%, #a9702f 45%, #2c1a0c 85%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.werewolf-frame-corner--tl {
+  top: -3px;
+  left: -3px;
+}
+.werewolf-frame-corner--tl::before {
+  border-top: 3px solid #c6914c;
+  border-left: 3px solid #c6914c;
+}
+.werewolf-frame-corner--tl::after {
+  top: -3.5px;
+  left: -3.5px;
+}
+.werewolf-frame-corner--tr {
+  top: -3px;
+  right: -3px;
+}
+.werewolf-frame-corner--tr::before {
+  border-top: 3px solid #c6914c;
+  border-right: 3px solid #c6914c;
+}
+.werewolf-frame-corner--tr::after {
+  top: -3.5px;
+  right: -3.5px;
+}
+.werewolf-frame-corner--bl {
+  bottom: -3px;
+  left: -3px;
+}
+.werewolf-frame-corner--bl::before {
+  border-bottom: 3px solid #c6914c;
+  border-left: 3px solid #c6914c;
+}
+.werewolf-frame-corner--bl::after {
+  bottom: -3.5px;
+  left: -3.5px;
+}
+.werewolf-frame-corner--br {
+  bottom: -3px;
+  right: -3px;
+}
+.werewolf-frame-corner--br::before {
+  border-bottom: 3px solid #c6914c;
+  border-right: 3px solid #c6914c;
+}
+.werewolf-frame-corner--br::after {
+  bottom: -3.5px;
+  right: -3.5px;
+}
+.werewolf-ledger-row {
+  background-image: linear-gradient(90deg, transparent, rgba(121, 69, 28, 0.018) 50%, transparent);
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+.werewolf-ledger-row:hover,
+.werewolf-ledger-row:focus-within {
+  background-color: rgba(143, 81, 31, 0.07);
+  box-shadow: inset 3px 0 0 rgba(173, 104, 42, 0.22);
+}
+.werewolf-room-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  border: 1px solid #9d5e28;
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, rgba(25, 5, 5, 0.78), transparent 15%, transparent 85%, rgba(25, 5, 5, 0.78)),
+    linear-gradient(180deg, #842b22, #50140f 52%, #270908);
+  color: #f0dab0;
+  font-family: var(--font-serif);
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px #000;
+  box-shadow:
+    inset 0 0 0 2px rgba(9, 5, 4, 0.82),
+    inset 0 1px 0 3px rgba(255, 211, 132, 0.12),
+    inset 0 -2px 0 3px rgba(30, 5, 4, 0.72),
+    0 0 0 1px rgba(42, 19, 9, 0.92),
+    0 6px 16px rgba(0, 0, 0, 0.48);
+  transition: transform 150ms ease, filter 150ms ease, border-color 150ms ease;
+}
+.werewolf-room-action::before,
+.werewolf-room-action::after {
+  content: "◆";
+  position: absolute;
+  color: rgba(235, 177, 90, 0.72);
+  font-size: 7px;
+}
+.werewolf-room-action::before { left: 0.65rem; }
+.werewolf-room-action::after { right: 0.65rem; }
+.werewolf-room-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #d19142;
+  filter: brightness(1.1);
+}
+.werewolf-room-action:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.94);
+  box-shadow:
+    inset 0 0 0 2px rgba(9, 5, 4, 0.9),
+    inset 0 3px 8px rgba(0, 0, 0, 0.52),
+    0 2px 8px rgba(0, 0, 0, 0.42);
+}
+.werewolf-room-action:focus-visible {
+  outline: 2px solid #f1c56d;
+  outline-offset: 3px;
+}
+.werewolf-room-action:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.25) brightness(0.78);
+  opacity: 0.86;
+}
+.werewolf-room-action[aria-busy="true"] {
+  cursor: wait;
+}
+
+/* Create-room ironwork: a reusable, image-free forged-metal treatment. */
+.werewolf-room-action--create {
+  border-width: 2px;
+  border-color: #8b5c2d;
+  background:
+    repeating-linear-gradient(105deg, transparent 0 8px, rgba(255, 218, 145, 0.025) 9px, transparent 10px 17px),
+    linear-gradient(90deg, #160b09, transparent 16%, transparent 84%, #160b09),
+    linear-gradient(180deg, #8d3527, #521811 52%, #260908);
+  box-shadow:
+    inset 0 0 0 2px #090605,
+    inset 0 0 0 4px rgba(170, 109, 47, 0.34),
+    inset 0 2px 0 5px rgba(247, 203, 123, 0.1),
+    inset 0 -3px 0 5px rgba(20, 6, 5, 0.76),
+    0 0 0 1px #1b100a,
+    0 0 0 3px rgba(102, 65, 30, 0.5),
+    0 8px 20px rgba(0, 0, 0, 0.56);
+}
+
+.werewolf-create-dialog-shell {
+  isolation: isolate;
+  border-radius: 3px;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(194, 132, 60, 0.1), transparent 24%),
+    repeating-linear-gradient(112deg, transparent 0 12px, rgba(213, 169, 94, 0.018) 13px, transparent 14px 25px),
+    linear-gradient(145deg, rgba(32, 32, 31, 0.98), rgba(8, 10, 12, 0.99) 42%, rgba(17, 13, 11, 0.99));
+  box-shadow:
+    inset 0 18px 28px -28px rgba(224, 179, 99, 0.28),
+    inset 0 -18px 28px -28px rgba(224, 179, 99, 0.18),
+    0 30px 90px rgba(0, 0, 0, 0.78);
+}
+
+.werewolf-wolf-frame {
+  border-style: solid;
+  border-width: var(--werewolf-wolf-frame-width);
+  border-image-source: url("/werewolf-game/forged-wolf-frame/v1/forged-wolf-frame.png");
+  border-image-slice: 155 175 150 175;
+  border-image-repeat: stretch;
+  border-image-outset: 0;
+}
+
+.werewolf-wolf-frame--dialog {
+  --werewolf-wolf-frame-width: clamp(1.75rem, 4vw, 3.5rem);
+}
+
+.werewolf-wolf-frame--ledger {
+  --werewolf-wolf-frame-width: clamp(1.5rem, 3.5vw, 3.25rem);
+}
+
+.werewolf-create-dialog-action {
+  border-width: 2px;
+  border-color: #95612f;
+  box-shadow:
+    inset 0 0 0 2px #100706,
+    inset 0 1px 0 3px rgba(247, 206, 131, 0.15),
+    inset 0 -2px 0 3px rgba(28, 6, 5, 0.72),
+    0 0 0 1px #21120b,
+    0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 639px) {
+  .werewolf-create-dialog-shell {
+    border-radius: 2px;
+    box-shadow:
+      inset 0 14px 22px -24px rgba(224, 179, 99, 0.24),
+      inset 0 -14px 22px -24px rgba(224, 179, 99, 0.16),
+      0 20px 60px rgba(0, 0, 0, 0.76);
+  }
+}
+
+/* Phase-aware gameplay surfaces: one carved system, with restrained event tones. */
+.werewolf-game-stage {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--werewolf-stage-border, rgba(120, 70, 29, 0.72));
+  border-radius: 5px;
+  background:
+    radial-gradient(circle at 50% 0%, var(--werewolf-stage-glow, rgba(180, 116, 45, 0.1)), transparent 48%),
+    linear-gradient(180deg, rgba(12, 17, 22, 0.96), rgba(4, 7, 10, 0.96));
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.82),
+    inset 0 1px 0 rgba(255, 221, 153, 0.06),
+    0 20px 55px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(12px);
+}
+.werewolf-game-stage::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid color-mix(in srgb, var(--werewolf-stage-border, #78461d) 38%, transparent);
+  pointer-events: none;
+}
+.werewolf-game-stage--night {
+  --werewolf-stage-border: rgba(99, 79, 153, 0.75);
+  --werewolf-stage-glow: rgba(92, 69, 171, 0.18);
+}
+.werewolf-game-stage--day {
+  --werewolf-stage-border: rgba(166, 104, 32, 0.82);
+  --werewolf-stage-glow: rgba(219, 147, 43, 0.2);
+}
+.werewolf-game-stage--danger {
+  --werewolf-stage-border: rgba(139, 43, 35, 0.82);
+  --werewolf-stage-glow: rgba(174, 34, 24, 0.2);
+}
+.werewolf-game-stage--result {
+  --werewolf-stage-border: rgba(151, 103, 39, 0.85);
+  --werewolf-stage-glow: rgba(203, 151, 61, 0.17);
+}
+.werewolf-stage-kicker {
+  font-family: var(--font-serif);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+.werewolf-stage-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-heading-sm);
+  font-weight: 800;
+  line-height: 1.2;
+  color: #ead9b6;
+}
+.werewolf-phase-header {
+  margin-inline: auto;
+  width: fit-content;
+  border-bottom: 1px solid rgba(120, 70, 29, 0.42);
+  padding: 0.25rem 1.25rem 0.75rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
+}
+.werewolf-phase-header--night { border-color: rgba(118, 94, 181, 0.48); }
+.werewolf-phase-header--day { border-color: rgba(193, 128, 38, 0.5); }
+
 @media (prefers-reduced-motion: reduce) {
   .animate-twinkle,
   .animate-bg-twinkle,
@@ -283,7 +774,12 @@
   .animate-aura-rainbow,
   .animate-reward-rays,
   .animate-reward-shine,
-  .animate-shooting-star {
+  .animate-shooting-star,
+  .animate-tech-scan,
+  .animate-orbit,
+  .animate-orbit-reverse,
+  .animate-status-pulse,
+  .animate-snow-fall {
     animation: none !important;
   }
 }

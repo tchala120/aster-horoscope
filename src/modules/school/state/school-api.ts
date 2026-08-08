@@ -1,4 +1,5 @@
 import type {
+  AddPlaylistItemRequest,
   AssetResponse,
   AuthResponse,
   CommentInput,
@@ -8,8 +9,13 @@ import type {
   LessonResponse,
   LessonType,
   LessonsResponse,
+  PlaylistDetailResponse,
+  PlaylistInput,
+  PlaylistResponse,
+  PlaylistsResponse,
   ReactionType,
   ReactionsResponse,
+  ReorderPlaylistItemsRequest,
   ToggleReactionRequest,
 } from "@/shared";
 import { type AppError, ErrorCodes, createError } from "@/shared";
@@ -73,8 +79,14 @@ export const schoolApi = {
       body: JSON.stringify({ ...input, type: "video" }),
     }),
   createPdf: (form: FormData) => multipartUpload<LessonResponse>("/school/lessons", form),
+  /** Report that the signed-in player watched this video lesson (gates the "watch a video" quest). */
+  reportWatched: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/school/lessons/${id}/watch`, { method: "POST" }),
   update: (id: string, input: LessonInput) =>
-    apiFetch<LessonResponse>(`/school/lessons/${id}`, { method: "PUT", body: JSON.stringify(input) }),
+    apiFetch<LessonResponse>(`/school/lessons/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
   remove: (id: string) => apiFetch<{ ok: boolean }>(`/school/lessons/${id}`, { method: "DELETE" }),
 
   uploadImage: (form: FormData) => multipartUpload<AssetResponse>("/school/assets", form),
@@ -94,4 +106,42 @@ export const schoolApi = {
       method: "POST",
       body: JSON.stringify({ type } satisfies ToggleReactionRequest),
     }),
+
+  playlists: {
+    list: (params: { page?: number; limit?: number; mine?: boolean } = {}) => {
+      const sp = new URLSearchParams();
+      if (params.page) sp.set("page", String(params.page));
+      if (params.limit) sp.set("limit", String(params.limit));
+      if (params.mine) sp.set("mine", "1");
+      const s = sp.toString();
+      return apiFetch<PlaylistsResponse>(`/school/playlists${s ? `?${s}` : ""}`);
+    },
+    get: (id: string) => apiFetch<PlaylistDetailResponse>(`/school/playlists/${id}`),
+    create: (input: PlaylistInput) =>
+      apiFetch<PlaylistResponse>("/school/playlists", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    update: (id: string, input: PlaylistInput) =>
+      apiFetch<PlaylistResponse>(`/school/playlists/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(input),
+      }),
+    remove: (id: string) =>
+      apiFetch<{ ok: boolean }>(`/school/playlists/${id}`, { method: "DELETE" }),
+    addItem: (id: string, lessonId: string) =>
+      apiFetch<PlaylistDetailResponse>(`/school/playlists/${id}/items`, {
+        method: "POST",
+        body: JSON.stringify({ lessonId } satisfies AddPlaylistItemRequest),
+      }),
+    removeItem: (id: string, lessonId: string) =>
+      apiFetch<PlaylistDetailResponse>(`/school/playlists/${id}/items/${lessonId}`, {
+        method: "DELETE",
+      }),
+    reorder: (id: string, lessonIds: string[]) =>
+      apiFetch<PlaylistDetailResponse>(`/school/playlists/${id}/items`, {
+        method: "PUT",
+        body: JSON.stringify({ lessonIds } satisfies ReorderPlaylistItemsRequest),
+      }),
+  },
 };

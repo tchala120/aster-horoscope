@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useRef } from "react";
-import { playClip, preloadClip } from "@/foundation/ui/sound";
+import { useEffect, useMemo, useReducer } from "react";
 import { dealTiles, isMatch, seededRng, type Tile } from "../core/match";
 
 export type { Tile } from "../core/match";
@@ -12,8 +11,6 @@ export const PAIRS = 9;
 const INITIAL_SEED = 20260715;
 /** How long a mismatched pair stays revealed before flipping back (ms). */
 const FLIP_BACK_MS = 900;
-/** Cheerful cue played on each successful pair. */
-const MATCH_SOUND = "/sound/happy.mp3";
 
 interface State {
   tiles: Tile[];
@@ -23,9 +20,7 @@ interface State {
 }
 
 type Action =
-  | { type: "deal"; tiles: Tile[] }
-  | { type: "flip"; index: number }
-  | { type: "resolve" };
+  { type: "deal"; tiles: Tile[] } | { type: "flip"; index: number } | { type: "resolve" };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -36,9 +31,7 @@ function reducer(state: State, action: Action): State {
       const tile = state.tiles[action.index];
       if (state.locked || !tile || tile.flipped || tile.matched) return state;
 
-      const tiles = state.tiles.map((t, i) =>
-        i === action.index ? { ...t, flipped: true } : t,
-      );
+      const tiles = state.tiles.map((t, i) => (i === action.index ? { ...t, flipped: true } : t));
 
       // First card of a pair.
       if (state.firstIndex === null) {
@@ -89,22 +82,8 @@ export function useMatchGame() {
     return () => clearTimeout(timer);
   }, [state.locked]);
 
-  const matches = useMemo(
-    () => state.tiles.filter((t) => t.matched).length / 2,
-    [state.tiles],
-  );
+  const matches = useMemo(() => state.tiles.filter((t) => t.matched).length / 2, [state.tiles]);
   const won = state.tiles.length > 0 && matches === state.tiles.length / 2;
-
-  // Cheer with a happy clip whenever the matched count rises (not on restart).
-  useEffect(() => {
-    preloadClip(MATCH_SOUND);
-  }, []);
-
-  const prevMatches = useRef(matches);
-  useEffect(() => {
-    if (matches > prevMatches.current) playClip(MATCH_SOUND);
-    prevMatches.current = matches;
-  }, [matches]);
 
   return {
     tiles: state.tiles,

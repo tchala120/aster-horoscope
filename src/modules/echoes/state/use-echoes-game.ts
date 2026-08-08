@@ -1,11 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { playError, playNote, primeAudio } from "@/foundation/ui/sound";
 import {
   dealCards,
   PAD_COUNT,
-  PAD_FREQS,
   randomStep,
   seededRng,
   type PadCard,
@@ -40,16 +38,18 @@ export function useEchoesGame() {
 
     sequence.forEach((pad, i) => {
       timers.push(
-        setTimeout(() => {
-          if (cancelled) return;
-          setActivePad(pad);
-          playNote(PAD_FREQS[pad]);
-          timers.push(
-            setTimeout(() => {
-              if (!cancelled) setActivePad(null);
-            }, SHOW_LIGHT_MS),
-          );
-        }, SHOW_START_DELAY + i * SHOW_STEP_MS),
+        setTimeout(
+          () => {
+            if (cancelled) return;
+            setActivePad(pad);
+            timers.push(
+              setTimeout(() => {
+                if (!cancelled) setActivePad(null);
+              }, SHOW_LIGHT_MS),
+            );
+          },
+          SHOW_START_DELAY + i * SHOW_STEP_MS,
+        ),
       );
     });
 
@@ -80,7 +80,6 @@ export function useEchoesGame() {
   }, []);
 
   const start = useCallback(() => {
-    primeAudio(); // unlock audio within the click gesture
     // Fresh random cards every new game. `best` is preserved across restarts.
     setCards(dealCards());
     setSequence([randomStep()]);
@@ -93,9 +92,8 @@ export function useEchoesGame() {
     (pad: number) => {
       if (phase !== "input") return;
 
-      // Tap feedback (light + tone).
+      // Tap feedback (light).
       setActivePad(pad);
-      playNote(PAD_FREQS[pad]);
       if (tapTimer.current) clearTimeout(tapTimer.current);
       tapTimer.current = setTimeout(() => setActivePad(null), TAP_LIGHT_MS);
 
@@ -114,7 +112,6 @@ export function useEchoesGame() {
         }
       } else {
         // Wrong pad — game over. Score = rounds fully cleared.
-        playError();
         setBest((b) => Math.max(b, sequence.length - 1));
         setPhase("over");
       }

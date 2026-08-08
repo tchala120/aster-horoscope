@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { userRepo } from "@/server/repositories";
+import type { MissionFeatureId } from "@/shared";
+import { questEventRepo, userRepo } from "@/server/repositories";
 import { ServiceError } from "@/server/service-error";
 import { draw } from "../session-service";
 import { accept, complete, pick, reject } from "../mission-service";
@@ -23,10 +24,26 @@ describe("mission-service lifecycle", () => {
     expect(accepted.mission?.deadline).not.toBe("");
     expect(accepted.daily.activeMissionRef).toBe(picked.mission!.id);
 
+    // Completion requires proof the linked quest activity actually happened.
+    questEventRepo.record(userId, accepted.mission!.featureRef as MissionFeatureId);
+
     const completed = await complete(userId, picked.mission!.id);
     expect(completed.mission?.status).toBe("completed");
     expect(completed.daily.activeMissionRef).toBeNull();
     expect(completed.daily.lastCompletionDate).not.toBeNull();
+  });
+
+  it("blocks completion until the linked quest activity is verified", async () => {
+    const { userId, cardIds } = await seededUserWithSpread();
+    const picked = pick(userId, cardIds[0]);
+    accept(userId, picked.mission!.id);
+
+    try {
+      await complete(userId, picked.mission!.id);
+      expect.unreachable("complete should be blocked without a quest-event signal");
+    } catch (e) {
+      expect((e as ServiceError).appError.code).toBe("MISSION_004");
+    }
   });
 
   it("reject flags the card as rejected", async () => {

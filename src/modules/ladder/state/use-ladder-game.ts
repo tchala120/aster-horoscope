@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { playError, playNote, primeAudio } from "@/foundation/ui/sound";
 import { drawRank, isCorrect, seededRng, type Guess } from "../core/ladder";
 
 /** Fixed seed for the first deal so server + client render the same cards. */
@@ -26,7 +25,15 @@ function initialState(): State {
   const rng = seededRng(INITIAL_SEED);
   const current = drawRank(rng);
   const next = drawRank(rng, current);
-  return { current, next, phase: "guessing", revealed: false, result: null, guessed: null, streak: 0 };
+  return {
+    current,
+    next,
+    phase: "guessing",
+    revealed: false,
+    result: null,
+    guessed: null,
+    streak: 0,
+  };
 }
 
 export function useLadderGame() {
@@ -42,20 +49,23 @@ export function useLadderGame() {
 
   function guess(dir: Guess) {
     if (state.phase !== "guessing") return;
-    primeAudio();
-    playNote(660, 0.08, 0.18);
 
     const correct = isCorrect(dir, state.current, state.next);
     const revealedNext = state.next;
     const streakNow = state.streak;
 
-    setState((s) => ({ ...s, phase: "revealing", revealed: true, result: correct ? "correct" : "wrong", guessed: dir }));
+    setState((s) => ({
+      ...s,
+      phase: "revealing",
+      revealed: true,
+      result: correct ? "correct" : "wrong",
+      guessed: dir,
+    }));
 
     timer.current = setTimeout(() => {
       if (correct) {
         const newStreak = streakNow + 1;
         setBest((b) => Math.max(b, newStreak));
-        playNote(1046, 0.11, 0.3);
         setState({
           current: revealedNext,
           next: drawRank(Math.random, revealedNext),
@@ -66,7 +76,6 @@ export function useLadderGame() {
           streak: newStreak,
         });
       } else {
-        playError();
         setState((s) => ({ ...s, phase: "over" }));
       }
     }, REVEAL_MS);
@@ -74,7 +83,6 @@ export function useLadderGame() {
 
   function restart() {
     if (timer.current) clearTimeout(timer.current);
-    primeAudio();
     const current = drawRank();
     setState({
       current,

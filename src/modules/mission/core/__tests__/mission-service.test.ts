@@ -49,7 +49,15 @@ describe("mission-service", () => {
       fc.property(difficulties, fc.integer({ min: 0, max: 14 }), (difficulty, dayOffset) => {
         const base = new Date("2026-01-01T00:00:00Z");
         const mission = acceptMission(
-          { id: "m", cardRef: "c", featureRef: "f", difficulty, deadline: "", status: "assigned" },
+          {
+            id: "m",
+            cardRef: "c",
+            featureRef: "f",
+            acceptedAt: null,
+            difficulty,
+            deadline: "",
+            status: "assigned",
+          },
           base,
         );
         const expectedMs = base.getTime() + DIFFICULTY_WINDOW_DAYS[difficulty] * 86_400_000;

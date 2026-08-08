@@ -5,6 +5,7 @@ import { BackLink } from "@/foundation/ui/components/BackLink";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
 import { useGame } from "@/modules/session-draw/state/game-context";
 import { StakingActionPanel } from "./components/StakingActionPanel";
+import { TechCard } from "./components/TechCard";
 
 /** Gated staking action page: connect a wallet, stake, view position, claim,
  * withdraw, exit. Reached from the /staking landing page's "Stake Now" CTA. */
@@ -25,7 +26,7 @@ export function StakeView() {
         {game.status === "loading" && <p className="text-grey-400">Loading…</p>}
 
         {game.status === "anon" && (
-          <div className="rounded-2xl bg-grey-gradient p-6 text-center ring-1 ring-white/8">
+          <TechCard className="p-6 text-center">
             <p className="text-text-md text-grey-200">Log in to stake.</p>
             <Link
               href="/"
@@ -33,7 +34,7 @@ export function StakeView() {
             >
               Go to login
             </Link>
-          </div>
+          </TechCard>
         )}
 
         {game.status === "authed" && <StakingActionPanel />}

@@ -34,12 +34,31 @@ model HistoryEntry {
   rewardType    String?
   rewardValue   Int?
   rewardGranted Boolean  @default(false)
+  /// On-chain HAPPY_COIN transfer hash for this reward, or null if not paid out.
+  payoutTxHash  String?
   completedAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, completedAt])
   @@map("history_entries")
+}
+
+/// An online Werewolf game room. No user account required — players are
+/// identified by a per-player secret token minted at join time. The entire
+/// mutable game state (players, phase, night picks, votes) lives in one JSON
+/// blob per room so the whole state machine stays in a single row; traffic
+/// per room is tiny (a handful of players polling every couple seconds), so
+/// this trades strict concurrency control for simplicity.
+model WerewolfRoom {
+  id        String   @id @default(uuid())
+  /// Short shareable join code (e.g. "7F3KQ2"), unique while the room lives.
+  code      String   @unique
+  state     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("werewolf_rooms")
 }
 
 /// A Tarot Match ranking-board result: player name, score (fewer moves is
@@ -71,9 +90,10 @@ model Lesson {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  file      LessonFile?
-  comments  Comment[]
-  reactions Reaction[]
+  file          LessonFile?
+  comments      Comment[]
+  reactions     Reaction[]
+  playlistItems PlaylistItem[]
 
   @@index([authorId])
   @@index([createdAt])
@@ -134,4 +154,40 @@ model Reaction {
 
   @@unique([lessonId, userId, type])
   @@map("reactions")
+}
+
+/// A user-curated, ordered collection of video lessons — "watch these in order."
+model Playlist {
+  id            String   @id @default(uuid())
+  authorId      String
+  authorName    String
+  title         String
+  description   String?
+  /// Uploaded cover image URL (e.g. /api/v1/school/assets/:id); falls back to
+  /// the first video's thumbnail in the UI when unset.
+  coverImageUrl String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items PlaylistItem[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("playlists")
+}
+
+/// One video lesson's slot within a playlist, in play order.
+model PlaylistItem {
+  id         String   @id @default(uuid())
+  playlistId String
+  lessonId   String
+  position   Int
+  createdAt  DateTime @default(now())
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  lesson   Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, lessonId])
+  @@index([playlistId, position])
+  @@map("playlist_items")
 }

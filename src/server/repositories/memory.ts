@@ -1,16 +1,26 @@
 import { randomUUID } from "node:crypto";
-import type { DailyState, HistoryEntry, MatchScore, Mission, RewardOutcome } from "@/shared";
+import type {
+  DailyState,
+  HistoryEntry,
+  MatchScore,
+  Mission,
+  MissionFeatureId,
+  RewardOutcome,
+} from "@/shared";
 import { emptyDailyState } from "@/modules/session-draw/core/daily-state";
+import type { RoomState } from "@/modules/werewolf/core/room";
 import type {
   HistoryRepo,
   MatchScoreRepo,
   MissionRepo,
   NewHistoryEntry,
   NewMatchScore,
+  QuestEventRepo,
   RewardRepo,
   StateRepo,
   UserRecord,
   UserRepo,
+  WerewolfRoomRepo,
 } from "./types";
 
 /**
@@ -85,6 +95,22 @@ class MemoryRewardRepo implements RewardRepo {
   }
 }
 
+class MemoryQuestEventRepo implements QuestEventRepo {
+  private events = new Map<string, string>();
+
+  record(userId: string, featureId: MissionFeatureId): void {
+    this.events.set(`${userId}:${featureId}`, new Date().toISOString());
+  }
+
+  consume(userId: string, featureId: MissionFeatureId, sinceIso: string | null): boolean {
+    const key = `${userId}:${featureId}`;
+    const at = this.events.get(key);
+    if (!at || !sinceIso || at < sinceIso) return false;
+    this.events.delete(key);
+    return true;
+  }
+}
+
 class MemoryHistoryRepo implements HistoryRepo {
   private byUser = new Map<string, HistoryEntry[]>();
   async add(entry: NewHistoryEntry): Promise<HistoryEntry> {
@@ -96,6 +122,7 @@ class MemoryHistoryRepo implements HistoryRepo {
       rewardType: entry.rewardType,
       rewardValue: entry.rewardValue,
       rewardGranted: entry.rewardGranted,
+      payoutTxHash: entry.payoutTxHash,
       completedAt: new Date().toISOString(),
     };
     const list = this.byUser.get(entry.userId) ?? [];
@@ -129,6 +156,27 @@ class MemoryMatchScoreRepo implements MatchScoreRepo {
   }
 }
 
+class MemoryWerewolfRoomRepo implements WerewolfRoomRepo {
+  private byCode = new Map<string, RoomState>();
+  async create(state: RoomState): Promise<RoomState> {
+    this.byCode.set(state.code, state);
+    return state;
+  }
+  async getByCode(code: string): Promise<RoomState | null> {
+    return this.byCode.get(code) ?? null;
+  }
+  async save(state: RoomState): Promise<RoomState> {
+    this.byCode.set(state.code, state);
+    return state;
+  }
+  async listRecent(limit: number): Promise<RoomState[]> {
+    return [...this.byCode.values()].reverse().slice(0, limit);
+  }
+  async deleteByCode(code: string): Promise<void> {
+    this.byCode.delete(code);
+  }
+}
+
 /** Singletons. `userRepo`/`historyRepo`/`matchScoreRepo` are selected in ./index
  *  (Prisma when DATABASE_URL is set, these in-memory impls otherwise).
  *  State/mission/reward stay in-memory for now. */
@@ -136,5 +184,7 @@ export const memoryUserRepo: UserRepo = new MemoryUserRepo();
 export const stateRepo: StateRepo = new MemoryStateRepo();
 export const missionRepo: MissionRepo = new MemoryMissionRepo();
 export const rewardRepo: RewardRepo = new MemoryRewardRepo();
+export const questEventRepo: QuestEventRepo = new MemoryQuestEventRepo();
 export const memoryHistoryRepo: HistoryRepo = new MemoryHistoryRepo();
 export const memoryMatchScoreRepo: MatchScoreRepo = new MemoryMatchScoreRepo();
+export const memoryWerewolfRoomRepo: WerewolfRoomRepo = new MemoryWerewolfRoomRepo();

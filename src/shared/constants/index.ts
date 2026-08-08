@@ -13,21 +13,10 @@ export const DIFFICULTY_WINDOW_DAYS: Record<Difficulty, number> = {
   hard: 7,
 };
 
-/** Reward types displayed on reveal (already implemented on the Aster platform). */
-export const REWARD_TYPES: readonly RewardType[] = ["astr", "discount"] as const;
+/** Reward types displayed on reveal. */
+export const REWARD_TYPES: readonly RewardType[] = ["astr"] as const;
 
-/** Mission catalog feature IDs (from the 10 Aster features; Lot of Luck excluded). */
-export const MISSION_FEATURE_IDS = [
-  "active_participant",
-  "daily_engagement",
-  "helpful_reviewer",
-  "survey_champion",
-  "marketplace_trader",
-  "teaching_assistant",
-  "weekly_contribution",
-  "marketplace_poster",
-  "expert_speaker",
-  "asset_collector",
-] as const;
+/** Mission quest types: an in-app activity the Seeker must actually complete. */
+export const MISSION_FEATURE_IDS = ["play_game", "watch_video", "write_article"] as const;
 
 export type MissionFeatureId = (typeof MISSION_FEATURE_IDS)[number];

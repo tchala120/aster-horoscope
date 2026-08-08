@@ -7,6 +7,9 @@ import type {
   LessonType,
   MatchScore,
   Mission,
+  Playlist,
+  PlaylistItem,
+  PlaylistSummary,
   ReactionType,
   RewardOutcome,
   SeekerSession,
@@ -135,6 +138,45 @@ export interface AssetResponse {
 /** GET /api/v1/school/lessons/:id/comments */
 export interface CommentsResponse {
   comments: LessonComment[];
+}
+
+// ---- Aster School: Playlists ------------------------------------------------
+
+/** GET /api/v1/school/playlists — paginated feed of playlists. */
+export interface PlaylistsResponse {
+  playlists: PlaylistSummary[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+/** GET /api/v1/school/playlists/:id — a playlist with its ordered items. */
+export interface PlaylistDetailResponse {
+  playlist: Playlist;
+  items: PlaylistItem[];
+}
+
+/** POST/PUT a playlist (JSON). */
+export interface PlaylistInput {
+  title: string;
+  description?: string;
+  /** Uploaded cover image URL (from POST /school/assets); omit/empty clears it. */
+  coverImageUrl?: string;
+}
+
+/** Response after creating/updating a playlist. */
+export interface PlaylistResponse {
+  playlist: Playlist;
+}
+
+/** POST /api/v1/school/playlists/:id/items — add an existing video lesson to the playlist. */
+export interface AddPlaylistItemRequest {
+  lessonId: string;
+}
+
+/** PUT /api/v1/school/playlists/:id/items — reorder to this full list of lesson ids. */
+export interface ReorderPlaylistItemsRequest {
+  lessonIds: string[];
 }
 
 /** POST /api/v1/school/lessons/:id/comments */

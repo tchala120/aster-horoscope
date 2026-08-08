@@ -2,13 +2,8 @@
 
 export type Difficulty = "easy" | "medium" | "hard";
 export type Arcana = "major";
-export type RewardType = "astr" | "discount";
-export type MissionStatus =
-  | "assigned"
-  | "active"
-  | "completed"
-  | "expired"
-  | "rejected";
+export type RewardType = "astr";
+export type MissionStatus = "assigned" | "active" | "completed" | "expired" | "rejected";
 
 /** Themed front artwork for a card (one image per life area). */
 export interface CardArtwork {
@@ -64,6 +59,8 @@ export interface Mission {
   cardRef: string;
   featureRef: string;
   difficulty: Difficulty;
+  /** ISO timestamp of acceptance; null until accepted. Gates which quest-completion signals count. */
+  acceptedAt: string | null;
   deadline: string;
   status: MissionStatus;
 }
@@ -74,10 +71,14 @@ export interface RewardOutcome {
   granted: boolean;
   rewardType: RewardType | null;
   /**
-   * The granted amount: ASTR token count (1-100) or discount percentage (1-10).
-   * Null when nothing was granted. Higher values are rarer (inverse-weighted).
+   * The granted HP token amount (1-100). Null when nothing was granted.
+   * Higher values are rarer (inverse-weighted).
    */
   value: number | null;
+  /** On-chain HAPPY_COIN transfer hash once the payout is sent, else null. */
+  payoutTxHash: string | null;
+  /** Reason the on-chain payout was skipped or failed, else null. */
+  payoutError: string | null;
 }
 
 export interface ShareEvent {
@@ -100,6 +101,8 @@ export interface HistoryEntry {
   rewardType: RewardType | null;
   rewardValue: number | null;
   rewardGranted: boolean;
+  /** On-chain HAPPY_COIN transfer hash for this reward, or null if not paid out. */
+  payoutTxHash: string | null;
   /** ISO-8601 UTC timestamp of the completion. */
   completedAt: string;
 }
@@ -163,4 +166,32 @@ export interface LessonComment {
   authorName: string;
   body: string;
   createdAt: string; // ISO-8601 UTC
+}
+
+/** A user-curated, ordered collection of video lessons. */
+export interface Playlist {
+  id: string;
+  authorId: string;
+  authorName: string;
+  title: string;
+  description: string | null;
+  /** Uploaded cover image URL; falls back to the first video's thumbnail when null. */
+  coverImageUrl: string | null;
+  createdAt: string; // ISO-8601 UTC
+  updatedAt: string; // ISO-8601 UTC
+}
+
+/** A playlist enriched with item count and a cover lesson, for cards. */
+export interface PlaylistSummary extends Playlist {
+  itemCount: number;
+  /** The first video in the playlist (by position), used for its thumbnail; null when empty. */
+  firstLesson: LessonSummary | null;
+}
+
+/** One lesson's slot within a playlist, in play order. */
+export interface PlaylistItem {
+  id: string;
+  playlistId: string;
+  position: number;
+  lesson: LessonSummary;
 }

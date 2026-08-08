@@ -1,16 +1,16 @@
 "use client";
 
-import { useRef } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { playHoverChime } from "@/foundation/ui/sound";
-import { cardVariants, fanCardVariants, hoverLift, type FanTransform } from "./animation/spread-motion";
+import {
+  cardVariants,
+  fanCardVariants,
+  hoverLift,
+  type FanTransform,
+} from "./animation/spread-motion";
 
 /** Shared card-back artwork shown on every face-down card. */
 const CARD_BACK_SRC = "/cards/backside-card/backside_card.png";
-
-/** Min gap between hover chimes so a fast sweep across cards stays pleasant. */
-const HOVER_SOUND_THROTTLE_MS = 70;
 
 interface SpreadCardViewProps {
   index: number;
@@ -54,16 +54,6 @@ export function SpreadCardView({
       : fan && isHovered && interactive
         ? "hover"
         : "shown";
-  const lastChime = useRef(0);
-
-  const handleHoverStart = () => {
-    // Sound is a sensory extra — skip it for reduced-motion users.
-    if (reducedMotion || !interactive) return;
-    const now = performance.now();
-    if (now - lastChime.current < HOVER_SOUND_THROTTLE_MS) return;
-    lastChime.current = now;
-    playHoverChime();
-  };
 
   // Reduced motion: no animation. The fan's x/y offset already lives on the
   // (unanimated) <li> wrapper — see FannedSpread — so only rotation is needed
@@ -111,7 +101,6 @@ export function SpreadCardView({
     <motion.button
       type="button"
       {...motionProps}
-      onHoverStart={handleHoverStart}
       disabled={disabled || rejected}
       onClick={onSelect}
       aria-label={`Tarot card ${index + 1}, face down`}

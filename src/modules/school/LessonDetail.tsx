@@ -7,6 +7,7 @@ import type { LessonSummary, ReactionType } from "@/shared";
 import { BackLink } from "@/foundation/ui/components/BackLink";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
 import { formatDate } from "@/foundation/ui/format";
+import { AddToPlaylistMenu } from "./components/AddToPlaylistMenu";
 import { CommentSection } from "./components/CommentSection";
 import { LessonTypeBadge } from "./components/LessonTypeBadge";
 import { MarkdownView } from "./components/MarkdownView";
@@ -34,7 +35,11 @@ export function LessonDetail({ id }: { id: string }) {
     void schoolApi.get(id).then((res) => {
       if (!active) return;
       if (res.ok) {
-        setState({ status: "ready", lesson: res.value.lesson, yourReactions: res.value.yourReactions });
+        setState({
+          status: "ready",
+          lesson: res.value.lesson,
+          yourReactions: res.value.yourReactions,
+        });
       } else if (res.error.status === 404) {
         setState({ status: "notfound" });
       } else {
@@ -66,14 +71,19 @@ export function LessonDetail({ id }: { id: string }) {
           state.status === "ready" && state.lesson.type === "video" ? "max-w-6xl" : "max-w-3xl"
         }`}
       >
-        <BackLink href={state.status === "ready" && state.lesson.type === "video" ? "/school" : undefined} />
+        <BackLink
+          href={state.status === "ready" && state.lesson.type === "video" ? "/school" : undefined}
+        />
 
         {state.status === "loading" && <p className="text-grey-400">Loading…</p>}
 
         {state.status === "notfound" && (
           <div className="rounded-2xl bg-grey-gradient p-8 text-center ring-1 ring-white/8">
             <p className="text-text-lg font-semibold text-grey-100">Lesson not found</p>
-            <Link href="/school" className="mt-4 inline-block text-text-md font-semibold text-aster-sky-300 hover:underline">
+            <Link
+              href="/school"
+              className="mt-4 inline-block text-text-md font-semibold text-aster-sky-300 hover:underline"
+            >
               Back to Aster School
             </Link>
           </div>
@@ -90,43 +100,48 @@ export function LessonDetail({ id }: { id: string }) {
                 <header className="flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-3">
                     <LessonTypeBadge type={lesson.type} />
-                    {isOwner ? (
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/school/${lesson.id}/edit`}
-                          className="rounded-full px-3 py-1.5 text-text-sm font-semibold text-grey-200 ring-1 ring-white/15 hover:bg-white/8"
-                        >
-                          Edit
-                        </Link>
-                        {confirming ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={onDelete}
-                              disabled={deleting}
-                              className="rounded-full bg-red-500/90 px-3 py-1.5 text-text-sm font-semibold text-white disabled:opacity-50"
-                            >
-                              {deleting ? "Deleting…" : "Confirm"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setConfirming(false)}
-                              className="rounded-full px-3 py-1.5 text-text-sm font-semibold text-grey-300 ring-1 ring-white/15 hover:bg-white/8"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setConfirming(true)}
-                            className="rounded-full px-3 py-1.5 text-text-sm font-semibold text-grey-300 ring-1 ring-white/15 hover:bg-white/8 hover:text-red-400"
+                    <div className="flex items-center gap-2">
+                      {lesson.type === "video" && userId ? (
+                        <AddToPlaylistMenu lessonId={lesson.id} />
+                      ) : null}
+                      {isOwner ? (
+                        <>
+                          <Link
+                            href={`/school/${lesson.id}/edit`}
+                            className="rounded-full px-3 py-1.5 text-text-sm font-semibold text-grey-200 ring-1 ring-white/15 hover:bg-white/8"
                           >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    ) : null}
+                            Edit
+                          </Link>
+                          {confirming ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={onDelete}
+                                disabled={deleting}
+                                className="rounded-full bg-red-500/90 px-3 py-1.5 text-text-sm font-semibold text-white disabled:opacity-50"
+                              >
+                                {deleting ? "Deleting…" : "Confirm"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirming(false)}
+                                className="rounded-full px-3 py-1.5 text-text-sm font-semibold text-grey-300 ring-1 ring-white/15 hover:bg-white/8"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirming(true)}
+                              className="rounded-full px-3 py-1.5 text-text-sm font-semibold text-grey-300 ring-1 ring-white/15 hover:bg-white/8 hover:text-red-400"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </>
+                      ) : null}
+                    </div>
                   </div>
 
                   <h1 className="text-heading-lg font-bold text-grey-50">{lesson.title}</h1>
@@ -140,7 +155,9 @@ export function LessonDetail({ id }: { id: string }) {
                       </span>
                     ))}
                   </p>
-                  {lesson.summary ? <p className="text-text-md text-grey-300">{lesson.summary}</p> : null}
+                  {lesson.summary ? (
+                    <p className="text-text-md text-grey-300">{lesson.summary}</p>
+                  ) : null}
                 </header>
 
                 <ReactionBar
@@ -156,7 +173,11 @@ export function LessonDetail({ id }: { id: string }) {
                     fileName={lesson.pdfFileName ?? "document.pdf"}
                   />
                 ) : lesson.type === "video" ? (
-                  <VideoPlayer key={lesson.videoUrl} url={lesson.videoUrl ?? ""} />
+                  <VideoPlayer
+                    key={lesson.videoUrl}
+                    url={lesson.videoUrl ?? ""}
+                    onWatched={() => void schoolApi.reportWatched(lesson.id)}
+                  />
                 ) : (
                   <article className="rounded-2xl bg-grey-900/40 p-5 ring-1 ring-white/8 sm:p-6">
                     <MarkdownView>{lesson.content ?? ""}</MarkdownView>

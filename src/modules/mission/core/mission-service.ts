@@ -37,6 +37,7 @@ export function createMission(
     cardRef: cardId,
     featureRef: entry.featureId,
     difficulty: entry.difficulty,
+    acceptedAt: null,
     deadline: "",
     status: "assigned",
   };
@@ -44,7 +45,12 @@ export function createMission(
 
 /** Accept an assigned mission: activate it and start its difficulty-based deadline. */
 export function acceptMission(mission: Mission, now: Date): Mission {
-  return { ...mission, status: "active", deadline: deadlineFor(mission.difficulty, now) };
+  return {
+    ...mission,
+    status: "active",
+    acceptedAt: now.toISOString(),
+    deadline: deadlineFor(mission.difficulty, now),
+  };
 }
 
 /** Reject an assigned mission (returns to the spread). */

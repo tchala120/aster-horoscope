@@ -11,6 +11,7 @@ interface HistoryRow {
   rewardType: string | null;
   rewardValue: number | null;
   rewardGranted: boolean;
+  payoutTxHash: string | null;
   completedAt: Date;
 }
 
@@ -23,6 +24,7 @@ function toEntry(row: HistoryRow): HistoryEntry {
     rewardType: row.rewardType as RewardType | null,
     rewardValue: row.rewardValue,
     rewardGranted: row.rewardGranted,
+    payoutTxHash: row.payoutTxHash,
     completedAt: row.completedAt.toISOString(),
   };
 }
@@ -43,6 +45,7 @@ export const prismaHistoryRepo: HistoryRepo = {
         rewardType: entry.rewardType,
         rewardValue: entry.rewardValue,
         rewardGranted: entry.rewardGranted,
+        payoutTxHash: entry.payoutTxHash,
       },
     });
     return toEntry(row);

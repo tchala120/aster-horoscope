@@ -88,9 +88,14 @@ export function VideoCard({ lesson, currentUserId, onDeleted }: VideoCardProps) 
           ) : null}
         </Link>
 
-        {isOwner ? (
+        {isOwner || currentUserId ? (
           <div className="shrink-0">
-            <LessonOptionsMenu lessonId={lesson.id} onDeleted={onDeleted} />
+            <LessonOptionsMenu
+              lessonId={lesson.id}
+              onDeleted={onDeleted}
+              isOwner={isOwner}
+              showAddToPlaylist={currentUserId !== null}
+            />
           </div>
         ) : null}
       </div>

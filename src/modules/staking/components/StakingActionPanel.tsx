@@ -8,12 +8,13 @@ import { sepolia } from "wagmi/chains";
 import { ERC20_ABI } from "@/foundation/web3/erc20-abi";
 import { STAKING_ABI } from "@/foundation/web3/staking-abi";
 import { HAPPY_COIN_ADDRESS, STAKING_ADDRESS, wagmiConfig } from "@/foundation/web3/wagmi-config";
+import { TechCard } from "./TechCard";
 import { TransactionOverlay, type TxAction, type TxPhase } from "./TransactionOverlay";
 
 type Action = TxAction;
 
 function formatToken(raw: bigint | undefined, decimals: number): string {
-  if (raw === undefined) return "0";
+  if (raw === undefined) return "…";
   const value = Number(formatUnits(raw, decimals));
   if (!Number.isFinite(value)) return "0";
   return value.toLocaleString(undefined, { maximumFractionDigits: 4 });
@@ -63,7 +64,7 @@ function AmountField({
         onChange={(e) => onChange(e.target.value)}
         placeholder="0.0"
         disabled={disabled}
-        className="w-full bg-transparent py-3 text-text-md text-grey-50 placeholder:text-grey-500 focus:outline-none disabled:opacity-60"
+        className="w-full bg-transparent py-3 font-mono text-text-md text-grey-50 placeholder:text-grey-500 focus:outline-none disabled:opacity-60"
       />
       <button
         type="button"
@@ -81,7 +82,7 @@ function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between text-text-sm">
       <span className="text-grey-400">{label}</span>
-      <span className="font-semibold text-grey-100">{value}</span>
+      <span className="font-mono font-semibold tabular-nums text-grey-100">{value}</span>
     </div>
   );
 }
@@ -119,7 +120,11 @@ export function StakingActionPanel() {
   });
   const dec = decimals ?? 18;
 
-  const { data: walletBalance, refetch: refetchWalletBalance } = useReadContract({
+  const {
+    data: walletBalance,
+    refetch: refetchWalletBalance,
+    isError: isWalletBalanceError,
+  } = useReadContract({
     address: HAPPY_COIN_ADDRESS,
     abi: ERC20_ABI,
     functionName: "balanceOf",
@@ -128,7 +133,11 @@ export function StakingActionPanel() {
     query: { enabled: Boolean(account) },
   });
 
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+  const {
+    data: allowance,
+    refetch: refetchAllowance,
+    isError: isAllowanceError,
+  } = useReadContract({
     address: HAPPY_COIN_ADDRESS,
     abi: ERC20_ABI,
     functionName: "allowance",
@@ -137,7 +146,11 @@ export function StakingActionPanel() {
     query: { enabled: Boolean(account) },
   });
 
-  const { data: stakeInfo, refetch: refetchStakeInfo } = useReadContract({
+  const {
+    data: stakeInfo,
+    refetch: refetchStakeInfo,
+    isError: isStakeInfoError,
+  } = useReadContract({
     address: STAKING_ADDRESS,
     abi: STAKING_ABI,
     functionName: "stakes",
@@ -146,7 +159,11 @@ export function StakingActionPanel() {
     query: { enabled: Boolean(account) },
   });
 
-  const { data: pendingRewards, refetch: refetchPendingRewards } = useReadContract({
+  const {
+    data: pendingRewards,
+    refetch: refetchPendingRewards,
+    isError: isPendingRewardsError,
+  } = useReadContract({
     address: STAKING_ADDRESS,
     abi: STAKING_ABI,
     functionName: "pendingRewards",
@@ -155,15 +172,26 @@ export function StakingActionPanel() {
     query: { enabled: Boolean(account) },
   });
 
+  const hasReadError =
+    Boolean(account) &&
+    (isWalletBalanceError || isAllowanceError || isStakeInfoError || isPendingRewardsError);
+
   const [stakedAmount, , , unlockTime] = stakeInfo ?? [BigInt(0), BigInt(0), BigInt(0), BigInt(0)];
   // Conservative until the client clock is established: treat as locked so
   // withdraw controls don't briefly flash enabled before `now` is set.
   const unlocked = now !== null && (unlockTime === BigInt(0) || Number(unlockTime) * 1000 <= now);
   const hasAllowance =
-    allowance !== undefined && stakeAmount !== "" && allowance >= (parseAmount(stakeAmount, dec) ?? BigInt(0));
+    allowance !== undefined &&
+    stakeAmount !== "" &&
+    allowance >= (parseAmount(stakeAmount, dec) ?? BigInt(0));
 
   const refetchAll = async () => {
-    await Promise.all([refetchWalletBalance(), refetchAllowance(), refetchStakeInfo(), refetchPendingRewards()]);
+    await Promise.all([
+      refetchWalletBalance(),
+      refetchAllowance(),
+      refetchStakeInfo(),
+      refetchPendingRewards(),
+    ]);
   };
 
   const runTx = async (action: Action, fn: () => Promise<`0x${string}`>) => {
@@ -261,7 +289,11 @@ export function StakingActionPanel() {
   };
 
   const handleEmergencyWithdraw = () => {
-    if (!window.confirm("This withdraws your stake immediately but forfeits all pending rewards. Continue?")) {
+    if (
+      !window.confirm(
+        "This withdraws your stake immediately but forfeits all pending rewards. Continue?",
+      )
+    ) {
       return;
     }
     void runTx("emergency", () =>
@@ -280,7 +312,7 @@ export function StakingActionPanel() {
       <TransactionOverlay action={pendingAction} phase={txPhase} />
 
       {!isConnected || !account ? (
-        <section className="rounded-3xl bg-grey-900/70 p-6 text-center ring-1 ring-white/8 backdrop-blur-xl">
+        <TechCard className="p-6 text-center">
           <p className="text-text-md text-grey-300">Connect a wallet to stake HP.</p>
           <button
             type="button"
@@ -289,14 +321,31 @@ export function StakingActionPanel() {
           >
             Connect Wallet
           </button>
-        </section>
+        </TechCard>
       ) : (
         <>
+          {hasReadError && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-red-500/10 px-4 py-3 text-text-sm text-red-300 ring-1 ring-red-500/20">
+              <span>
+                Couldn&apos;t load your on-chain balance. Check your connection and try again.
+              </span>
+              <button
+                type="button"
+                onClick={() => void refetchAll()}
+                className="shrink-0 font-semibold underline underline-offset-2"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Stake */}
-          <section className="rounded-3xl bg-grey-900/70 p-6 ring-1 ring-white/8 backdrop-blur-xl">
+          <TechCard className="p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-text-md font-semibold text-grey-100">Stake</h2>
-              <span className="text-text-sm text-grey-400">Balance: {formatToken(walletBalance, dec)} HP</span>
+              <span className="font-mono text-text-sm tabular-nums text-grey-400">
+                Balance: {formatToken(walletBalance, dec)} HP
+              </span>
             </div>
             <div className="mt-4">
               <AmountField
@@ -320,16 +369,18 @@ export function StakingActionPanel() {
                     ? "Stake"
                     : "Approve"}
             </button>
-          </section>
+          </TechCard>
 
           {/* Your position */}
-          <section className="rounded-3xl bg-grey-900/70 p-6 ring-1 ring-white/8 backdrop-blur-xl">
+          <TechCard className="p-6">
             <h2 className="text-text-md font-semibold text-grey-100">Your position</h2>
             <div className="mt-4 flex flex-col gap-2.5">
               <StatRow label="Staked" value={`${formatToken(stakedAmount, dec)} HP`} />
               <StatRow
                 label="Unlock"
-                value={stakedAmount > BigInt(0) && now !== null ? formatCountdown(unlockTime, now) : "—"}
+                value={
+                  stakedAmount > BigInt(0) && now !== null ? formatCountdown(unlockTime, now) : "—"
+                }
               />
               <StatRow label="Pending rewards" value={`${formatToken(pendingRewards, dec)} HP`} />
             </div>
@@ -349,7 +400,9 @@ export function StakingActionPanel() {
                 <div className="flex items-center justify-between">
                   <span className="text-text-sm text-grey-400">Withdraw</span>
                   {!unlocked && now !== null && (
-                    <span className="text-text-sm text-grey-500">{formatCountdown(unlockTime, now)}</span>
+                    <span className="text-text-sm text-grey-500">
+                      {formatCountdown(unlockTime, now)}
+                    </span>
                   )}
                 </div>
                 <div className="mt-2">
@@ -386,12 +439,14 @@ export function StakingActionPanel() {
                     disabled={busy}
                     className="mt-3 w-full rounded-full px-6 py-2.5 text-text-sm font-medium text-red-400 transition-colors enabled:hover:bg-red-500/10 disabled:opacity-50"
                   >
-                    {pendingAction === "emergency" ? "Withdrawing…" : "Emergency withdraw (forfeits pending rewards)"}
+                    {pendingAction === "emergency"
+                      ? "Withdrawing…"
+                      : "Emergency withdraw (forfeits pending rewards)"}
                   </button>
                 )}
               </>
             )}
-          </section>
+          </TechCard>
         </>
       )}
 

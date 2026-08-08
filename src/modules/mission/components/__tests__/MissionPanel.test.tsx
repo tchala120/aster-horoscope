@@ -7,7 +7,8 @@ import { MissionPanel } from "../MissionPanel";
 const assigned: Mission = {
   id: "m1",
   cardRef: "the-star",
-  featureRef: "active_participant",
+  featureRef: "play_game",
+  acceptedAt: null,
   difficulty: "easy",
   deadline: "",
   status: "assigned",
@@ -18,9 +19,14 @@ describe("MissionPanel", () => {
     const onAccept = vi.fn();
     const onReject = vi.fn();
     render(
-      <MissionPanel mission={assigned} onAccept={onAccept} onReject={onReject} onComplete={() => {}} />,
+      <MissionPanel
+        mission={assigned}
+        onAccept={onAccept}
+        onReject={onReject}
+        onComplete={() => {}}
+      />,
     );
-    expect(screen.getByText("Active Participant")).toBeInTheDocument();
+    expect(screen.getByText("Mini-Games")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
     await userEvent.click(screen.getByRole("button", { name: "Reject" }));
     expect(onAccept).toHaveBeenCalledWith("m1");
@@ -34,7 +40,12 @@ describe("MissionPanel", () => {
       deadline: new Date(Date.now() + 86_400_000).toISOString(),
     };
     render(
-      <MissionPanel mission={active} onAccept={() => {}} onReject={() => {}} onComplete={() => {}} />,
+      <MissionPanel
+        mission={active}
+        onAccept={() => {}}
+        onReject={() => {}}
+        onComplete={() => {}}
+      />,
     );
     expect(screen.getByRole("button", { name: "I did it" })).toBeInTheDocument();
     expect(screen.getByLabelText("Time until next draw")).toBeInTheDocument();

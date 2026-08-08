@@ -5,16 +5,16 @@ import { REWARD_CATALOG } from "@/data/reward-catalog";
 export type RewardRarity = "common" | "rare" | "epic" | "legendary";
 
 export interface RewardDisplay {
-  /** Prominent value line, e.g. "42 ASTR" or "7% off". */
+  /** Prominent value line, e.g. "42 HP". */
   headline: string;
-  /** Reward label, e.g. "ASTR" / "Discount". */
+  /** Reward label, e.g. "HP". */
   label: string;
   /** Longer descriptive line shown under the headline. */
   detail: string;
   /** Numeric value for the count-up animation; null when nothing was granted. */
   value: number | null;
-  /** How the value reads ("token" → ASTR, "percent" → % off); null on no-gain. */
-  unit: "token" | "percent" | null;
+  /** How the value reads ("token" → HP); null on no-gain. */
+  unit: "token" | null;
   /** Rarity tier, used to theme the reveal. */
   rarity: RewardRarity;
   /** Normalized position of the value within its range (0..1). */
@@ -52,23 +52,16 @@ export function formatReward(outcome: RewardOutcome): RewardDisplay {
     entry && span > 0 ? Math.min(1, Math.max(0, (outcome.value - entry.min) / span)) : 1;
   const rarity = rarityFor(rarityRatio);
 
-  if (outcome.rewardType === "discount") {
-    return {
-      headline: `${outcome.value}% off`,
-      label,
-      detail: `A ${outcome.value}% discount to use on your next reward redemption.`,
-      value: outcome.value,
-      unit: "percent",
-      rarity,
-      rarityRatio,
-    };
-  }
+  const detail = outcome.payoutTxHash
+    ? `${outcome.value} HP sent to your wallet.`
+    : outcome.payoutError
+      ? `${outcome.value} HP granted — ${outcome.payoutError}`
+      : `${outcome.value} HP token${outcome.value === 1 ? "" : "s"} added to your balance.`;
 
-  // ASTR token
   return {
-    headline: `${outcome.value} ASTR`,
+    headline: `${outcome.value} HP`,
     label,
-    detail: `${outcome.value} ASTR token${outcome.value === 1 ? "" : "s"} added to your balance.`,
+    detail,
     value: outcome.value,
     unit: "token",
     rarity,

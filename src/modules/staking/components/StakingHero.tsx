@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
+import { TechCard } from "./TechCard";
 
 /** Animates a number counting up from its previous value to `target`. */
 function useCountUp(target: number, durationMs = 900): number {
@@ -42,7 +43,7 @@ function StatColumn({ label, value }: { label: string; value: string }) {
   return (
     <div className="text-center">
       <p className="text-text-sm font-bold uppercase tracking-wide text-aster-teal-400">{label}</p>
-      <p className="mt-1 text-heading-md font-bold text-grey-50 tabular-nums">{value}</p>
+      <p className="mt-1 font-mono text-heading-md font-bold tabular-nums text-grey-50">{value}</p>
     </div>
   );
 }
@@ -52,10 +53,18 @@ interface StakingHeroProps {
   totalStakedTokens: number | undefined;
   lockDays: number | undefined;
   onStakeClick: () => void;
+  /** True when the on-chain stat reads failed — shows "—" instead of an indefinite "…". */
+  hasError?: boolean;
 }
 
 /** Hero banner: badge, headline, animated APR/TVL/lock stats, Stake CTA, floating coin art. */
-export function StakingHero({ aprPercent, totalStakedTokens, lockDays, onStakeClick }: StakingHeroProps) {
+export function StakingHero({
+  aprPercent,
+  totalStakedTokens,
+  lockDays,
+  onStakeClick,
+  hasError,
+}: StakingHeroProps) {
   const reduced = useReducedMotion() ?? false;
   const apr = useCountUp(aprPercent ?? 0);
   const staked = useCountUp(totalStakedTokens ?? 0);
@@ -70,12 +79,13 @@ export function StakingHero({ aprPercent, totalStakedTokens, lockDays, onStakeCl
         };
 
   return (
-    <section className="relative flex flex-col items-center overflow-hidden rounded-3xl bg-grey-900/70 px-6 py-10 text-center ring-1 ring-white/8 backdrop-blur-xl sm:py-14">
+    <TechCard className="flex flex-col items-center px-6 py-10 text-center sm:py-14">
       <motion.span
         {...fadeUp(0)}
-        className="inline-flex items-center gap-2 rounded-full bg-grey-950/70 px-4 py-1.5 text-text-sm font-semibold text-grey-300 ring-1 ring-white/12"
+        className="inline-flex items-center gap-2 rounded-full bg-grey-950/70 px-4 py-1.5 font-mono text-text-sm font-semibold text-grey-300 ring-1 ring-white/12"
       >
-        <span aria-hidden>⚡</span> Built on Sepolia
+        <span className="h-2 w-2 rounded-full bg-aster-teal-400 animate-status-pulse" aria-hidden />
+        Built on Sepolia
       </motion.span>
 
       <motion.h1
@@ -95,20 +105,36 @@ export function StakingHero({ aprPercent, totalStakedTokens, lockDays, onStakeCl
         Lock HP in the pool and earn a fixed reward — no surprises.
       </motion.p>
 
-      <motion.div {...fadeUp(0.28)} className="mt-8 flex items-center justify-center gap-8 sm:gap-12">
+      {hasError && (
+        <motion.p {...fadeUp(0.24)} className="mt-3 text-text-sm text-red-400">
+          Couldn&apos;t load live stats — check your connection and refresh.
+        </motion.p>
+      )}
+
+      <motion.div
+        {...fadeUp(0.28)}
+        className="mt-8 flex items-center justify-center gap-8 sm:gap-12"
+      >
         <StatColumn
           label="Total staked"
           value={
-            totalStakedTokens === undefined
-              ? "…"
+            hasError || totalStakedTokens === undefined
+              ? "—"
               : `${staked.toLocaleString(undefined, { maximumFractionDigits: 2 })} HP`
           }
         />
         <StatColumn
           label="APR"
-          value={aprPercent === undefined ? "…" : `${apr.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`}
+          value={
+            hasError || aprPercent === undefined
+              ? "—"
+              : `${apr.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
+          }
         />
-        <StatColumn label="Lock" value={lockDays === undefined ? "…" : `${lockDays}d`} />
+        <StatColumn
+          label="Lock"
+          value={hasError || lockDays === undefined ? "—" : `${lockDays}d`}
+        />
       </motion.div>
 
       <motion.button
@@ -134,6 +160,21 @@ export function StakingHero({ aprPercent, totalStakedTokens, lockDays, onStakeCl
           animate={reduced ? undefined : { opacity: [0.6, 1, 0.6], scale: [1, 1.08, 1] }}
           transition={{ duration: 4, ease: "easeInOut", repeat: Infinity }}
         />
+
+        {/* HUD orbit rings — dashed tech rings spinning around the coin. */}
+        {!reduced && (
+          <>
+            <span
+              aria-hidden
+              className="animate-orbit absolute inset-[-10%] rounded-full border border-dashed border-aster-teal-400/35"
+            />
+            <span
+              aria-hidden
+              className="animate-orbit-reverse absolute inset-[2%] rounded-full border border-dashed border-aster-sky-400/25"
+            />
+          </>
+        )}
+
         <motion.div
           className="relative h-28 w-28 sm:h-36 sm:w-36"
           animate={reduced ? undefined : { y: [0, -10, 0] }}
@@ -167,6 +208,6 @@ export function StakingHero({ aprPercent, totalStakedTokens, lockDays, onStakeCl
             </motion.span>
           ))}
       </motion.div>
-    </section>
+    </TechCard>
   );
 }
