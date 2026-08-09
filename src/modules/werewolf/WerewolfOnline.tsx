@@ -39,15 +39,15 @@ import {
 } from "./state/participant-storage";
 
 const BACKDROP: Partial<Record<RoomPhase, string>> = {
-  "night-wolf": "/werewolf-game/forest.png",
-  "night-seer": "/werewolf-game/village-night.png",
-  "night-doctor": "/werewolf-game/village-night.png",
-  dawn: "/werewolf-game/village-night.png",
-  "hunter-revenge": "/werewolf-game/forest.png",
-  "day-discuss": "/werewolf-game/village-day.png",
-  "day-vote": "/werewolf-game/village-day.png",
-  "day-result": "/werewolf-game/village-day.png",
-  over: "/werewolf-game/village-day.png",
+  "night-wolf": "/werewolf-game/system/night.png",
+  "night-seer": "/werewolf-game/system/night.png",
+  "night-doctor": "/werewolf-game/system/night.png",
+  dawn: "/werewolf-game/system/night.png",
+  "hunter-revenge": "/werewolf-game/system/hunter-event.png",
+  "day-discuss": "/werewolf-game/system/day-discuss.png",
+  "day-vote": "/werewolf-game/system/day-vote.png",
+  "day-result": "/werewolf-game/system/morning.png",
+  over: "/werewolf-game/system/morning.png",
 };
 
 const NIGHT_PHASES: RoomPhase[] = ["night-wolf", "night-seer", "night-doctor", "dawn"];
@@ -776,7 +776,7 @@ function RoleDistributionPanel({ playerCount }: { playerCount: number }) {
 
   return (
     <div className="werewolf-ancient-panel flex flex-col gap-3 p-4">
-      <p className="werewolf-ancient-heading">Role Distribution</p>
+      <p className="werewolf-ancient-heading ">Role Distribution</p>
       <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-col">
         {ROLE_ORDER.filter((role) => counts.has(role)).map((role) => {
           const framelessPortrait = FRAMELESS_ROLE_PORTRAITS[role];
@@ -797,7 +797,7 @@ function RoleDistributionPanel({ playerCount }: { playerCount: number }) {
                 </span>
               </div>
               <span className="font-mono text-[11px] font-bold text-amber-300/80">
-                ×{counts.get(role)}
+                {counts.get(role)}
               </span>
             </div>
           );
@@ -1168,6 +1168,213 @@ function WaitingCard({ text }: { text: string }) {
   );
 }
 
+/** Role-name plaque with a circular avatar slot burned into its left edge — pinned to
+ *  the top-left of the screen for every phase, for whichever role the viewer has. */
+const ROLE_LABEL: Partial<Record<RoleId, string>> = {
+  werewolf: "/werewolf-game/system/werewolf-role-lable.png",
+  villager: "/werewolf-game/system/villeger-lable.png",
+  hunter: "/werewolf-game/system/hunter-label.png",
+  seer: "/werewolf-game/system/seer-label.png",
+  doctor: "/werewolf-game/system/doctor-label.png",
+};
+
+function RoleBadge({ role, avatar, alive }: { role: RoleId; avatar?: string; alive: boolean }) {
+  const labelSrc = ROLE_LABEL[role];
+  return (
+    <div className="mx-auto w-full max-w-sm lg:fixed lg:left-8 lg:top-6 lg:mx-0 lg:w-[400px]">
+      {labelSrc ? (
+        <div className="relative aspect-[4/1] w-full">
+          <Image src={labelSrc} alt="" fill sizes="220px" className="object-cover" />
+          {avatar && role !== "werewolf" && (
+            <span className="absolute left-[9%] top-[40%] aspect-square h-[68%] -translate-y-1/2 overflow-hidden rounded-full">
+              <Image src={avatar} alt="" fill sizes="60px" className="object-cover object-top" />
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 rounded-sm border border-amber-900/45 bg-black/50 py-1.5 pl-1.5 pr-4 shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur">
+          <div className="h-10 w-10 shrink-0">
+            <RolePortrait role={ROLES[role]} size={40} />
+          </div>
+          <p className="text-text-sm text-grey-400">
+            Your hidden role:{" "}
+            <span className="font-serif font-semibold text-[#ead9b6]">{ROLES[role].label}</span>
+          </p>
+        </div>
+      )}
+      {!alive && (
+        <p className="mt-1 text-center text-[11px] text-grey-500 lg:text-left">
+          Eliminated — you can still watch
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** The wolves' victim-selection screen: role banner, framed avatar grid, and a
+ *  two-step select-then-confirm hunt (matches the "Confirm the Hunt" reference). */
+function WolfHuntPanel({
+  nightNumber,
+  targets,
+  onConfirm,
+}: {
+  nightNumber: number;
+  targets: PublicPlayer[];
+  onConfirm: (id: string) => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  return (
+    <>
+      <div className="werewolf-game-stage werewolf-game-stage--danger mx-auto flex w-full max-w-2xl flex-col gap-5 px-6 py-7">
+        <div className="text-center">
+          <p className="werewolf-stage-kicker text-red-300">Night {nightNumber} &middot; Wolves</p>
+
+          <h2 className="werewolf-stage-title mt-1">Choose tonight&apos;s victim</h2>
+        </div>
+
+        {/* Victim List */}
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-6">
+          {targets.map((p) => {
+            const isSelected = selected === p.id;
+
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSelected(p.id)}
+                aria-pressed={isSelected}
+                className={`
+                group
+                flex w-[100px] shrink-0
+                flex-col items-center gap-1
+                rounded-lg p-1
+                transition
+
+                focus:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-red-400
+
+                ${isSelected ? "opacity-100" : "opacity-80 hover:opacity-100"}
+              `}
+              >
+                <div className="relative aspect-[3/4] w-full">
+                  <span className="absolute inset-[2%] overflow-visible bg-transparent">
+                    <Image
+                      src={p.avatar}
+                      alt={p.name}
+                      fill
+                      sizes="200px"
+                      className={`
+                      bg-transparent
+                      object-contain
+                      transition-[filter]
+                      duration-300
+
+                      group-hover:drop-shadow-[0_0_8px_rgba(255,0,0,1)]
+                      group-hover:drop-shadow-[0_0_18px_rgba(255,0,0,0.9)]
+
+                      ${
+                        isSelected
+                          ? `
+                            drop-shadow-[0_0_8px_rgba(255,0,0,1)]
+                            drop-shadow-[0_0_18px_rgba(255,0,0,0.9)]
+                          `
+                          : ""
+                      }
+                    `}
+                    />
+                  </span>
+                </div>
+
+                <span
+                  className={`
+                  w-full truncate text-center
+                  text-[11px] font-semibold
+                  transition-colors duration-300
+
+                  ${isSelected ? "text-red-300" : "text-[#ead9b6] group-hover:text-red-300"}
+                `}
+                >
+                  {p.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Confirm Hunt */}
+      <button
+        type="button"
+        disabled={!selected}
+        onClick={() => selected && onConfirm(selected)}
+        aria-label="Confirm the hunt"
+        className="
+        group
+        relative mx-auto
+        flex w-full max-w-xs
+        shrink-0
+        flex-col items-center
+        gap-20
+
+        transition-[filter]
+        duration-300
+
+        disabled:cursor-not-allowed
+        disabled:opacity-40
+
+        focus:outline-none
+        focus-visible:ring-2
+        focus-visible:ring-red-400
+
+        lg:fixed
+        lg:bottom-6
+        lg:right-6
+        lg:mx-0
+      "
+      >
+        <Image
+          src="/werewolf-game/system/hun_circle.png"
+          alt=""
+          width={100}
+          height={100}
+          className={`
+          h-auto
+          w-full
+          object-contain
+          transition-[filter]
+          duration-300
+
+          ${
+            selected
+              ? `
+                group-hover:drop-shadow-[0_0_8px_rgba(255,0,0,1)]
+                group-hover:drop-shadow-[0_0_20px_rgba(255,0,0,0.8)]
+              `
+              : ""
+          }
+        `}
+        />
+
+        <Image
+          src="/werewolf-game/system/confirm_hun.png"
+          alt=""
+          width={320}
+          height={100}
+          className={`
+          -mt-40
+          h-auto
+          w-full
+          object-contain
+          transition-[filter]
+          duration-300
+        `}
+        />
+      </button>
+    </>
+  );
+}
+
 export function WerewolfOnline({ code }: { code?: string }) {
   const reduced = useReducedMotion() ?? false;
   const o = useWerewolfOnline(code);
@@ -1214,15 +1421,11 @@ export function WerewolfOnline({ code }: { code?: string }) {
         if (you?.alive && you.role === "werewolf") {
           const targets = alive.filter((p) => p.role !== "werewolf");
           return (
-            <div className="werewolf-game-stage werewolf-game-stage--danger mx-auto flex w-full max-w-sm flex-col gap-4 px-6 py-7">
-              <div className="text-center">
-                <p className="werewolf-stage-kicker text-red-300">
-                  Night {view.nightNumber} &middot; Wolves
-                </p>
-                <h2 className="werewolf-stage-title mt-1">Choose tonight&apos;s victim</h2>
-              </div>
-              <PlayerPickGrid players={targets} onPick={o.chooseWolfTarget} />
-            </div>
+            <WolfHuntPanel
+              nightNumber={view.nightNumber}
+              targets={targets}
+              onConfirm={o.chooseWolfTarget}
+            />
           );
         }
         return <WaitingCard text="The wolves are choosing their victim…" />;
@@ -1435,22 +1638,17 @@ export function WerewolfOnline({ code }: { code?: string }) {
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-sm lg:fixed lg:left-6 lg:top-24 lg:w-[220px]">
+      {you?.role && (
+        <RoleBadge
+          role={you.role}
+          avatar={view.players.find((p) => p.isYou)?.avatar}
+          alive={you.alive}
+        />
+      )}
+
+      <div className="mx-auto w-full max-w-sm lg:fixed lg:left-6 lg:top-40 lg:w-[220px]">
         <GameLogPanel entries={view.gameLog} />
       </div>
-
-      {you?.role && (
-        <div className="mx-auto flex items-center gap-3 rounded-sm border border-amber-900/45 bg-black/50 py-1.5 pl-1.5 pr-4 shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur">
-          <div className="h-10 w-10 shrink-0">
-            <RolePortrait role={ROLES[you.role]} size={40} />
-          </div>
-          <p className="text-text-sm text-grey-400">
-            Your hidden role:{" "}
-            <span className="font-serif font-semibold text-[#ead9b6]">{ROLES[you.role].label}</span>
-            {!you.alive && " (eliminated — you can still watch)"}
-          </p>
-        </div>
-      )}
 
       <motion.div
         key={view.phase}
