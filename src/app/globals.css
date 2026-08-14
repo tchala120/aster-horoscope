@@ -199,6 +199,55 @@
   animation: aura-pulse 3.2s ease-in-out infinite;
 }
 
+/* Werewolf landing logo: a slow moonlit breathing glow — subtle scale plus a
+   red/amber drop-shadow pulse, echoing the wolf's eyes and the torch-lit village. */
+@keyframes werewolf-logo-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.35)) drop-shadow(0 0 22px rgba(217, 119, 6, 0.18));
+  }
+  50% {
+    transform: scale(1.035);
+    filter: drop-shadow(0 0 22px rgba(239, 68, 68, 0.65)) drop-shadow(0 0 40px rgba(217, 119, 6, 0.35));
+  }
+}
+.animate-werewolf-logo {
+  animation: werewolf-logo-glow 4.5s ease-in-out infinite;
+}
+
+/* Room list entrance: each piece (back link, crest, frame, rows, create button)
+   fades up into place once on load — apply with a per-element `animationDelay`
+   for a staggered cascade rather than everything popping in at once. */
+@keyframes werewolf-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-werewolf-fade-in {
+  animation: werewolf-fade-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Opacity-only variant for elements that already own a `transform` for their own
+   positioning (e.g. the campfire seats' `translate(-50%,-50%)` centering) — using
+   the slide-up variant there would clobber that transform instead of combining with it. */
+@keyframes werewolf-fade-in-op {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-werewolf-fade-in-op {
+  animation: werewolf-fade-in-op 0.8s ease-out both;
+}
+
 /* Slowly-rotating rainbow aura ring — a conic gradient spun behind an
    element and blurred into a soft glow (no separate library needed for
    this; same idea as e.g. DaisyUI's `aura-rainbow`, hand-rolled to match
@@ -411,6 +460,24 @@
   min-height: 100dvh;
   overflow-x: clip;
 }
+.werewolf-room-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #8a2f2f #1a1310;
+}
+.werewolf-room-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.werewolf-room-scroll::-webkit-scrollbar-track {
+  background: #1a1310;
+  border-radius: 999px;
+}
+.werewolf-room-scroll::-webkit-scrollbar-thumb {
+  background: #8a2f2f;
+  border-radius: 999px;
+}
+.werewolf-room-scroll::-webkit-scrollbar-thumb:hover {
+  background: #b04040;
+}
 .werewolf-entry-backdrop {
   position: fixed;
   z-index: 0;
@@ -572,82 +639,34 @@
   background-color: rgba(143, 81, 31, 0.07);
   box-shadow: inset 3px 0 0 rgba(173, 104, 42, 0.22);
 }
-.werewolf-room-action {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.25rem;
-  border: 1px solid #9d5e28;
-  border-radius: 3px;
-  background:
-    linear-gradient(90deg, rgba(25, 5, 5, 0.78), transparent 15%, transparent 85%, rgba(25, 5, 5, 0.78)),
-    linear-gradient(180deg, #842b22, #50140f 52%, #270908);
-  color: #f0dab0;
+.werewolf-start-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
   font-family: var(--font-serif);
   font-weight: 900;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  text-shadow: 0 1px 2px #000;
-  box-shadow:
-    inset 0 0 0 2px rgba(9, 5, 4, 0.82),
-    inset 0 1px 0 3px rgba(255, 211, 132, 0.12),
-    inset 0 -2px 0 3px rgba(30, 5, 4, 0.72),
-    0 0 0 1px rgba(42, 19, 9, 0.92),
-    0 6px 16px rgba(0, 0, 0, 0.48);
-  transition: transform 150ms ease, filter 150ms ease, border-color 150ms ease;
+  color: #f4f1e8;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.85),
+    0 0 10px rgba(255, 255, 255, 0.08);
+  transition: filter 150ms ease, text-shadow 150ms ease;
 }
-.werewolf-room-action::before,
-.werewolf-room-action::after {
-  content: "◆";
-  position: absolute;
-  color: rgba(235, 177, 90, 0.72);
-  font-size: 7px;
+.werewolf-start-link:hover:not(:disabled) {
+  filter: brightness(1.2);
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.85),
+    0 0 16px rgba(255, 255, 255, 0.4);
 }
-.werewolf-room-action::before { left: 0.65rem; }
-.werewolf-room-action::after { right: 0.65rem; }
-.werewolf-room-action:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: #d19142;
-  filter: brightness(1.1);
-}
-.werewolf-room-action:active:not(:disabled) {
-  transform: translateY(1px);
-  filter: brightness(0.94);
-  box-shadow:
-    inset 0 0 0 2px rgba(9, 5, 4, 0.9),
-    inset 0 3px 8px rgba(0, 0, 0, 0.52),
-    0 2px 8px rgba(0, 0, 0, 0.42);
-}
-.werewolf-room-action:focus-visible {
+.werewolf-start-link:focus-visible {
   outline: 2px solid #f1c56d;
   outline-offset: 3px;
 }
-.werewolf-room-action:disabled {
+.werewolf-start-link:disabled {
   cursor: not-allowed;
-  filter: grayscale(0.25) brightness(0.78);
-  opacity: 0.86;
-}
-.werewolf-room-action[aria-busy="true"] {
-  cursor: wait;
-}
-
-/* Create-room ironwork: a reusable, image-free forged-metal treatment. */
-.werewolf-room-action--create {
-  border-width: 2px;
-  border-color: #8b5c2d;
-  background:
-    repeating-linear-gradient(105deg, transparent 0 8px, rgba(255, 218, 145, 0.025) 9px, transparent 10px 17px),
-    linear-gradient(90deg, #160b09, transparent 16%, transparent 84%, #160b09),
-    linear-gradient(180deg, #8d3527, #521811 52%, #260908);
-  box-shadow:
-    inset 0 0 0 2px #090605,
-    inset 0 0 0 4px rgba(170, 109, 47, 0.34),
-    inset 0 2px 0 5px rgba(247, 203, 123, 0.1),
-    inset 0 -3px 0 5px rgba(20, 6, 5, 0.76),
-    0 0 0 1px #1b100a,
-    0 0 0 3px rgba(102, 65, 30, 0.5),
-    0 8px 20px rgba(0, 0, 0, 0.56);
+  opacity: 0.6;
 }
 
 .werewolf-create-dialog-shell {
@@ -772,6 +791,9 @@
   .animate-aurora-slow2,
   .animate-aura-pulse,
   .animate-aura-rainbow,
+  .animate-werewolf-logo,
+  .animate-werewolf-fade-in,
+  .animate-werewolf-fade-in-op,
   .animate-reward-rays,
   .animate-reward-shine,
   .animate-shooting-star,

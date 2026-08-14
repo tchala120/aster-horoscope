@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { OpenRoomSummary, PublicRoom, WerewolfAction } from "@/modules/werewolf/core/room";
+import type {
+  OpenRoomSummary,
+  PublicRoom,
+  RoomSettings,
+  WerewolfAction,
+} from "@/modules/werewolf/core/room";
 import {
   clearParticipantToken,
   loadParticipantToken,
@@ -121,14 +126,14 @@ export function useWerewolfOnline(initialCode?: string) {
   }, [joined]);
 
   const createGame = useCallback(
-    async (name: string, avatar: string) => {
+    async (roomName: string, name: string, avatar: string) => {
       setBusy(true);
       setError(null);
       try {
         const res = await fetch("/api/v1/werewolf/rooms", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, avatar }),
+          body: JSON.stringify({ roomName, name, avatar }),
         });
         const data = await parseJson<{ code: string; token: string; view: PublicRoom }>(res);
         saveParticipantToken(data.code, data.token);
@@ -207,14 +212,22 @@ export function useWerewolfOnline(initialCode?: string) {
   );
 
   const leaveRoom = useCallback(() => {
+    if (code && token) {
+      void fetch(`/api/v1/werewolf/rooms/${code}/leave`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+        keepalive: true,
+      }).catch(() => {});
+    }
     if (code) clearParticipantToken(code);
     stopPolling();
     setCode(null);
     setToken(null);
     setView(null);
     setError(null);
-    router.push("/werewolf");
-  }, [code, router, stopPolling]);
+    router.push("/werewolf/rooms");
+  }, [code, token, router, stopPolling]);
 
   const deleteRoom = useCallback(async () => {
     if (!code || !token) return;
@@ -264,9 +277,13 @@ export function useWerewolfOnline(initialCode?: string) {
     chooseHunterTarget: (targetId: string) => act({ type: "hunter-target", targetId }),
     continueDiscuss: () => act({ type: "discuss-continue" }),
     castVote: (targetId: string) => act({ type: "vote", targetId }),
+    castRunoffVote: (vote: boolean) => act({ type: "runoff-vote", vote }),
     continueDayResult: () => act({ type: "day-result-continue" }),
     playAgain: () => act({ type: "play-again" }),
     newPlayers: () => act({ type: "new-players" }),
     sendChat: (text: string) => act({ type: "chat", text }),
+    sendWolfChat: (text: string) => act({ type: "wolf-chat", text }),
+    kickPlayer: (playerId: string) => act({ type: "kick", playerId }),
+    updateSettings: (settings: Partial<RoomSettings>) => act({ type: "update-settings", settings }),
   };
 }

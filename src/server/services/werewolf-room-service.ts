@@ -6,10 +6,12 @@ import type {
   PublicPlayer,
   PublicRoom,
   RoomPlayer,
+  RoomSettings,
   RoomState,
   SeerVision,
   WerewolfAction,
 } from "@/modules/werewolf/core/room";
+import { DEFAULT_ROOM_SETTINGS } from "@/modules/werewolf/core/room";
 import {
   AVATARS,
   MAX_PLAYERS,
@@ -90,10 +92,14 @@ function roomSeerInspect(players: readonly RoomPlayer[], targetId: string): bool
 
 const GAME_LOG_LIMIT = 40;
 
-function appendGameLog(
-  state: RoomState,
-  entry: Omit<GameLogEntry, "id" | "at">,
-): RoomState {
+/** Role-reveal clause for a death announcement — omitted entirely when the
+ *  host has turned on "hide role on death", since `message`/game-log text
+ *  is broadcast unredacted to every viewer (unlike the per-player `role` field). */
+function deathRoleClause(state: RoomState, role: RoleId): string {
+  return state.settings.hideRoleOnDeath ? "" : ` — they were the ${ROLES[role].label}`;
+}
+
+function appendGameLog(state: RoomState, entry: Omit<GameLogEntry, "id" | "at">): RoomState {
   const full: GameLogEntry = { ...entry, id: randomUUID(), at: new Date().toISOString() };
   return { ...state, gameLog: [...(state.gameLog ?? []), full].slice(-GAME_LOG_LIMIT) };
 }
@@ -101,18 +107,21 @@ function appendGameLog(
 // ---- Night/day transitions (pure — given a state + validated input, return the next state) ----
 
 function beginNight(state: RoomState, night: number): RoomState {
-  return appendGameLog({
-    ...state,
-    phase: "night-wolf",
-    nightNumber: night,
-    countdownEndsAt: null,
-    wolfTargetId: null,
-    doctorProtectId: null,
-    seerTargetId: null,
-    lastNightKilledId: null,
-    hunterOrigin: null,
-    message: `Night ${night} falls. The wolves wake.`,
-  }, { phase: "night", label: `Night ${night}`, text: "Night falls over the village." });
+  return appendGameLog(
+    {
+      ...state,
+      phase: "night-wolf",
+      nightNumber: night,
+      countdownEndsAt: null,
+      wolfTargetId: null,
+      doctorProtectId: null,
+      seerTargetId: null,
+      lastNightKilledId: null,
+      hunterOrigin: null,
+      message: `Night ${night} falls. The wolves wake.`,
+    },
+    { phase: "night", label: `Night ${night}`, text: "Night falls over the village." },
+  );
 }
 
 function applyReady(state: RoomState, token: string, ready: boolean): RoomState {
@@ -133,12 +142,15 @@ function finishGame(state: RoomState, winner: Team): RoomState {
     winner === "village"
       ? "The village has rooted out every wolf!"
       : "The wolves have taken the village!";
-  return appendGameLog({
-    ...state,
-    phase: "over",
-    winner,
-    message,
-  }, { phase: "day", label: "Game over", text: message });
+  return appendGameLog(
+    {
+      ...state,
+      phase: "over",
+      winner,
+      message,
+    },
+    { phase: "day", label: "Game over", text: message },
+  );
 }
 
 function resolveNightState(state: RoomState): RoomState {
@@ -148,7 +160,7 @@ function resolveNightState(state: RoomState): RoomState {
   if (killedId) {
     const victim = state.players.find((p) => p.id === killedId)!;
     players = state.players.map((p) => (p.id === killedId ? { ...p, alive: false } : p));
-    message = `Dawn breaks. ${victim.name} was found dead — they were the ${ROLES[victim.role!].label}.`;
+    message = `Dawn breaks. ${victim.name} was found dead${deathRoleClause(state, victim.role!)}.`;
   } else {
     message = "Dawn breaks. Miraculously, no one died last night.";
   }
@@ -230,7 +242,7 @@ function applyHunterTarget(state: RoomState, token: string, targetId: string): R
   const victim = findAliveTarget(state, targetId);
 
   const players = state.players.map((p) => (p.id === targetId ? { ...p, alive: false } : p));
-  const message = `The Hunter's last shot fells ${victim.name} — they were the ${ROLES[victim.role!].label}.`;
+  const message = `The Hunter's last shot fells ${victim.name}${deathRoleClause(state, victim.role!)}.`;
   const withShotLog = appendGameLog(
     { ...state, players, hunterRevengeFor: null, message },
     {
@@ -248,13 +260,57 @@ function applyHunterTarget(state: RoomState, token: string, targetId: string): R
   return beginNight(next, state.nightNumber + 1);
 }
 
+/** Moves the room from discussion into voting — used by the manual "Proceed to vote"
+ *  click and by the discuss-timer auto-advance in getRoomView. */
+function beginDayVote(state: RoomState): RoomState {
+  return appendGameLog(
+    { ...state, phase: "day-vote", votes: {}, message: "Cast your vote." },
+    { phase: "day", label: `Day ${state.nightNumber}`, text: "Voting has begun." },
+  );
+}
+
 function applyDiscussContinue(state: RoomState, token: string): RoomState {
   requirePlayer(state, token);
   if (state.phase !== "day-discuss")
     throw serviceError("WEREWOLF_BAD_PHASE", "Not discussion time.", 409);
+  return beginDayVote(state);
+}
+
+/** Tallies whatever votes are in (used both once everyone has voted and when the vote
+ *  timer forces an early resolution — non-voters simply aren't counted, i.e. abstain). */
+function resolveDayVote(state: RoomState, votes: Record<string, string | null>): RoomState {
+  const tally = tallyVotes(votes);
+  if (tally.eliminatedId) {
+    const suspect = state.players.find((p) => p.id === tally.eliminatedId)!;
+    const message = `The village leans toward casting out ${suspect.name}. Cast your final verdict.`;
+    return appendGameLog(
+      {
+        ...state,
+        votes,
+        dayResult: tally,
+        phase: "day-runoff",
+        runoffCandidateId: suspect.id,
+        runoffVotes: {},
+        runoffResult: null,
+        message,
+      },
+      { phase: "day", label: `Day ${state.nightNumber} verdict`, text: message },
+    );
+  }
+  const message = tally.tie
+    ? "The vote is tied. No one is cast out."
+    : "No votes were cast. No one is cast out.";
   return appendGameLog(
-    { ...state, phase: "day-vote", votes: {}, message: "Cast your vote." },
-    { phase: "day", label: `Day ${state.nightNumber}`, text: "Voting has begun." },
+    {
+      ...state,
+      votes,
+      dayResult: tally,
+      phase: "day-result",
+      runoffCandidateId: null,
+      runoffResult: null,
+      message,
+    },
+    { phase: "day", label: `Day ${state.nightNumber} result`, text: message },
   );
 }
 
@@ -271,22 +327,44 @@ function applyVote(state: RoomState, token: string, targetId: string): RoomState
   const allVoted = aliveIds.every((id) => votes[id] !== undefined);
   if (!allVoted)
     return { ...state, votes, message: "Waiting for the rest of the village to vote." };
+  return resolveDayVote(state, votes);
+}
 
-  const tally = tallyVotes(votes);
+function applyRunoffVote(state: RoomState, token: string, vote: boolean): RoomState {
+  const voter = requirePlayer(state, token);
+  if (state.phase !== "day-runoff")
+    throw serviceError("WEREWOLF_BAD_PHASE", "Not the runoff vote.", 409);
+  if (!voter.alive) throw serviceError("WEREWOLF_FORBIDDEN", "The dead don't vote.", 403);
+
+  const runoffVotes = { ...state.runoffVotes, [voter.id]: vote };
+  const aliveIds = state.players.filter((p) => p.alive).map((p) => p.id);
+  const allVoted = aliveIds.every((id) => runoffVotes[id] !== undefined);
+  if (!allVoted) {
+    return { ...state, runoffVotes, message: "Waiting for the rest of the verdict…" };
+  }
+
+  const yes = Object.values(runoffVotes).filter(Boolean).length;
+  const no = aliveIds.length - yes;
+  const eliminated = yes > no;
+  const candidate = state.players.find((p) => p.id === state.runoffCandidateId)!;
   let players = state.players;
   let message: string;
-  if (tally.eliminatedId) {
-    const victim = state.players.find((p) => p.id === tally.eliminatedId)!;
-    players = state.players.map((p) => (p.id === tally.eliminatedId ? { ...p, alive: false } : p));
-    message = `The village casts out ${victim.name} — they were the ${ROLES[victim.role!].label}.`;
+  if (eliminated) {
+    players = state.players.map((p) => (p.id === candidate.id ? { ...p, alive: false } : p));
+    message = `The village casts out ${candidate.name}${deathRoleClause(state, candidate.role!)}.`;
   } else {
-    message = tally.tie
-      ? "The vote is tied. No one is cast out."
-      : "No votes were cast. No one is cast out.";
+    message = `The village hesitates. ${candidate.name} lives to see another day.`;
   }
   return appendGameLog(
-    { ...state, votes, players, dayResult: tally, phase: "day-result", message },
-    { phase: "day", label: `Day ${state.nightNumber} result`, text: message },
+    {
+      ...state,
+      runoffVotes,
+      players,
+      runoffResult: { yes, no, eliminated },
+      phase: "day-result",
+      message,
+    },
+    { phase: "day", label: `Day ${state.nightNumber} verdict`, text: message },
   );
 }
 
@@ -295,8 +373,9 @@ function applyDayResultContinue(state: RoomState, token: string): RoomState {
   if (state.phase !== "day-result")
     throw serviceError("WEREWOLF_BAD_PHASE", "Not the right time.", 409);
 
-  if (state.dayResult?.eliminatedId) {
-    const victim = state.players.find((p) => p.id === state.dayResult!.eliminatedId);
+  const eliminatedId = state.runoffResult?.eliminated ? state.runoffCandidateId : null;
+  if (eliminatedId) {
+    const victim = state.players.find((p) => p.id === eliminatedId);
     if (victim?.role === "hunter") {
       return {
         ...state,
@@ -316,20 +395,26 @@ function applyPlayAgain(state: RoomState, token: string): RoomState {
   requireHost(state, token);
   const roles = assignRoles(state.players.length);
   const players = state.players.map((p, i) => ({ ...p, role: roles[i], alive: true }));
-  return beginNight({
-    ...state,
-    players,
-    gameLog: [],
-    wolfTargetId: null,
-    doctorProtectId: null,
-    seerTargetId: null,
-    lastNightKilledId: null,
-    hunterRevengeFor: null,
-    hunterOrigin: null,
-    votes: {},
-    dayResult: null,
-    winner: null,
-  }, 1);
+  return beginNight(
+    {
+      ...state,
+      players,
+      gameLog: [],
+      wolfTargetId: null,
+      doctorProtectId: null,
+      seerTargetId: null,
+      lastNightKilledId: null,
+      hunterRevengeFor: null,
+      hunterOrigin: null,
+      votes: {},
+      dayResult: null,
+      runoffCandidateId: null,
+      runoffVotes: {},
+      runoffResult: null,
+      winner: null,
+    },
+    1,
+  );
 }
 
 function applyNewPlayers(state: RoomState, token: string): RoomState {
@@ -349,6 +434,9 @@ function applyNewPlayers(state: RoomState, token: string): RoomState {
     hunterOrigin: null,
     votes: {},
     dayResult: null,
+    runoffCandidateId: null,
+    runoffVotes: {},
+    runoffResult: null,
     winner: null,
     message: "Waiting for the host to start a new game.",
     gameLog: [],
@@ -363,6 +451,29 @@ function appendChat(state: RoomState, entry: Omit<ChatEntry, "id" | "at">): Room
   return { ...state, chat: [...state.chat, full].slice(-CHAT_LOG_LIMIT) };
 }
 
+const MAX_ACTION_COOLDOWN_SEC = 300;
+
+function applyUpdateSettings(
+  state: RoomState,
+  token: string,
+  patch: Partial<RoomSettings>,
+): RoomState {
+  requireHost(state, token);
+  if (state.phase !== "lobby") {
+    throw serviceError("WEREWOLF_BAD_PHASE", "Settings are locked once the game starts.", 409);
+  }
+  const settings: RoomSettings = { ...state.settings, ...patch };
+  if (
+    !Number.isFinite(settings.actionCooldownSec) ||
+    settings.actionCooldownSec < 0 ||
+    settings.actionCooldownSec > MAX_ACTION_COOLDOWN_SEC
+  ) {
+    throw serviceError("WEREWOLF_VALIDATION", "Invalid cooldown.", 400);
+  }
+  settings.actionCooldownSec = Math.round(settings.actionCooldownSec);
+  return { ...state, settings };
+}
+
 function applyChat(state: RoomState, token: string, text: string): RoomState {
   const sender = requirePlayer(state, token);
   const trimmed = text.trim().slice(0, 300);
@@ -373,6 +484,44 @@ function applyChat(state: RoomState, token: string, text: string): RoomState {
     color: sender.color,
     text: trimmed,
   });
+}
+
+/** Appends to the wolves-only channel, capping it the same way the public chat is capped. */
+function appendWolfChat(state: RoomState, entry: Omit<ChatEntry, "id" | "at">): RoomState {
+  const full: ChatEntry = { ...entry, id: randomUUID(), at: new Date().toISOString() };
+  return { ...state, wolfChat: [...(state.wolfChat ?? []), full].slice(-CHAT_LOG_LIMIT) };
+}
+
+function applyWolfChat(state: RoomState, token: string, text: string): RoomState {
+  const sender = requirePlayer(state, token);
+  if (sender.role !== "werewolf" || !sender.alive) {
+    throw serviceError("WEREWOLF_FORBIDDEN", "Only the living wolves can use the den.", 403);
+  }
+  const trimmed = text.trim().slice(0, 300);
+  if (!trimmed) throw serviceError("WEREWOLF_VALIDATION", "Message can't be empty.", 400);
+  return appendWolfChat(state, {
+    kind: "player",
+    name: sender.name,
+    color: sender.color,
+    text: trimmed,
+  });
+}
+
+function applyKick(state: RoomState, token: string, playerId: string): RoomState {
+  requireHost(state, token);
+  if (state.phase !== "lobby") {
+    throw serviceError("WEREWOLF_BAD_PHASE", "Players can only be removed from the lobby.", 409);
+  }
+  const target = state.players.find((p) => p.id === playerId);
+  if (!target) throw serviceError("WEREWOLF_VALIDATION", "Player not found.", 400);
+  if (target.token === state.hostToken) {
+    throw serviceError("WEREWOLF_VALIDATION", "The host can't kick themselves.", 400);
+  }
+  const players = state.players.filter((p) => p.id !== playerId);
+  return appendChat(
+    { ...state, players },
+    { kind: "system", name: null, color: null, text: `${target.name} was removed from the room.` },
+  );
 }
 
 function applyTransition(state: RoomState, token: string, action: WerewolfAction): RoomState {
@@ -395,6 +544,8 @@ function applyTransition(state: RoomState, token: string, action: WerewolfAction
       return applyDiscussContinue(state, token);
     case "vote":
       return applyVote(state, token, action.targetId);
+    case "runoff-vote":
+      return applyRunoffVote(state, token, action.vote);
     case "day-result-continue":
       return applyDayResultContinue(state, token);
     case "play-again":
@@ -403,6 +554,12 @@ function applyTransition(state: RoomState, token: string, action: WerewolfAction
       return applyNewPlayers(state, token);
     case "chat":
       return applyChat(state, token, action.text);
+    case "wolf-chat":
+      return applyWolfChat(state, token, action.text);
+    case "kick":
+      return applyKick(state, token, action.playerId);
+    case "update-settings":
+      return applyUpdateSettings(state, token, action.settings);
     default:
       throw serviceError("WEREWOLF_VALIDATION", "Unknown action.", 400);
   }
@@ -415,10 +572,12 @@ function toPublicRoom(state: RoomState, viewerToken: string): PublicRoom {
   const isOver = state.phase === "over";
   const gameStarted = state.phase !== "lobby" && state.phase !== "countdown";
 
+  const revealDeathRole = !state.settings.hideRoleOnDeath;
+
   const players: PublicPlayer[] = state.players.map((p) => {
     const revealRole =
       (gameStarted && p.token === viewerToken) ||
-      !p.alive ||
+      (!p.alive && revealDeathRole) ||
       isOver ||
       (gameStarted && viewer?.role === "werewolf" && p.role === "werewolf");
     return {
@@ -448,12 +607,25 @@ function toPublicRoom(state: RoomState, viewerToken: string): PublicRoom {
 
   const aliveIds = state.players.filter((p) => p.alive).map((p) => p.id);
   const votesIn = aliveIds.filter((id) => state.votes[id] !== undefined).length;
+  const runoffVotesIn = aliveIds.filter((id) => state.runoffVotes[id] !== undefined).length;
+
+  const wolfCount = state.players.filter((p) => p.role === "werewolf").length;
+  const wolfChat =
+    gameStarted && viewer?.role === "werewolf" && wolfCount >= 2 ? state.wolfChat : null;
+
+  const voteDetails: Record<string, string> | null = state.settings.showVoters
+    ? Object.fromEntries(
+        Object.entries(state.votes).filter((entry): entry is [string, string] => entry[1] != null),
+      )
+    : null;
 
   return {
     code: state.code,
     phase: state.phase,
     nightNumber: state.nightNumber,
     countdownEndsAt: state.countdownEndsAt ?? null,
+    phaseStartedAt: state.phaseStartedAt,
+    settings: state.settings,
     message: state.message,
     winner: state.winner,
     isHost: viewerToken === state.hostToken,
@@ -461,16 +633,29 @@ function toPublicRoom(state: RoomState, viewerToken: string): PublicRoom {
       ? { id: viewer.id, role: gameStarted ? viewer.role : null, alive: viewer.alive }
       : null,
     players,
-    wolvesRemaining: state.players.filter((p) => p.alive && p.role === "werewolf").length,
+    wolvesRemaining: state.settings.hideWolvesRemaining
+      ? null
+      : state.players.filter((p) => p.alive && p.role === "werewolf").length,
     seerVision,
     lastNightKilledId: state.lastNightKilledId,
     hunterRevengeFor: state.hunterRevengeFor,
-    dayEliminatedId: state.dayResult?.eliminatedId ?? null,
-    voteCounts: state.phase === "day-result" ? (state.dayResult?.counts ?? {}) : null,
+    dayEliminatedId: state.runoffResult?.eliminated ? state.runoffCandidateId : null,
+    voteCounts:
+      state.phase === "day-runoff" || state.phase === "day-result"
+        ? (state.dayResult?.counts ?? {})
+        : null,
+    voteDetails,
     youHaveVoted: viewer ? state.votes[viewer.id] !== undefined : false,
     votesIn,
     votesNeeded: aliveIds.length,
+    runoffCandidateId:
+      state.phase === "day-runoff" || state.phase === "day-result" ? state.runoffCandidateId : null,
+    youHaveVotedRunoff: viewer ? state.runoffVotes[viewer.id] !== undefined : false,
+    runoffVotesIn,
+    runoffVotesNeeded: aliveIds.length,
+    runoffResult: state.runoffResult,
     chat: state.chat,
+    wolfChat,
     gameLog: state.gameLog ?? [],
   };
 }
@@ -485,6 +670,7 @@ export async function listOpenRooms(): Promise<OpenRoomSummary[]> {
     .slice(0, 20)
     .map((state) => ({
       code: state.code,
+      roomName: state.roomName,
       hostName: state.players.find((p) => p.token === state.hostToken)?.name ?? "Someone",
       playerCount: state.players.length,
       maxPlayers: MAX_PLAYERS,
@@ -499,9 +685,12 @@ function requireAvatar(avatar: string | undefined): string {
 }
 
 export async function createRoom(
+  roomName: string,
   hostName: string,
   avatar: string | undefined,
 ): Promise<{ code: string; token: string; view: PublicRoom }> {
+  const trimmedRoomName = roomName.trim().slice(0, 24);
+  if (!trimmedRoomName) throw serviceError("WEREWOLF_VALIDATION", "Enter a room name.", 400);
   const name = hostName.trim().slice(0, 16);
   if (!name) throw serviceError("WEREWOLF_VALIDATION", "Enter a name.", 400);
   const picked = requireAvatar(avatar);
@@ -514,10 +703,13 @@ export async function createRoom(
 
   const state: RoomState = {
     code,
+    roomName: trimmedRoomName,
     hostToken: token,
     phase: "lobby",
     nightNumber: 1,
     countdownEndsAt: null,
+    phaseStartedAt: new Date().toISOString(),
+    settings: { ...DEFAULT_ROOM_SETTINGS },
     players: [
       {
         id: randomUUID(),
@@ -539,9 +731,13 @@ export async function createRoom(
     hunterOrigin: null,
     votes: {},
     dayResult: null,
+    runoffCandidateId: null,
+    runoffVotes: {},
+    runoffResult: null,
     winner: null,
     message: "Waiting for players to join.",
     chat: [],
+    wolfChat: [],
     gameLog: [],
   };
   const withChat = appendChat(state, {
@@ -593,6 +789,13 @@ export async function joinRoom(
   return { token, view: toPublicRoom(next, token) };
 }
 
+/** True once the discuss/vote timer (settings.actionCooldownSec) has run out for the
+ *  current phase. 0 (Off) never expires. */
+function phaseTimerExpired(state: RoomState): boolean {
+  if (!state.settings.actionCooldownSec) return false;
+  return Date.now() >= Date.parse(state.phaseStartedAt) + state.settings.actionCooldownSec * 1000;
+}
+
 export async function getRoomView(code: string, token: string): Promise<PublicRoom> {
   let state = await loadRoom(code);
   requirePlayer(state, token);
@@ -601,7 +804,13 @@ export async function getRoomView(code: string, token: string): Promise<PublicRo
     state.countdownEndsAt &&
     Date.parse(state.countdownEndsAt) <= Date.now()
   ) {
-    state = beginNight(state, 1);
+    state = { ...beginNight(state, 1), phaseStartedAt: new Date().toISOString() };
+    await werewolfRoomRepo.save(state);
+  } else if (state.phase === "day-discuss" && phaseTimerExpired(state)) {
+    state = { ...beginDayVote(state), phaseStartedAt: new Date().toISOString() };
+    await werewolfRoomRepo.save(state);
+  } else if (state.phase === "day-vote" && phaseTimerExpired(state)) {
+    state = { ...resolveDayVote(state, state.votes), phaseStartedAt: new Date().toISOString() };
     await werewolfRoomRepo.save(state);
   }
   return toPublicRoom(state, token);
@@ -630,6 +839,7 @@ export async function startRoom(code: string, token: string): Promise<PublicRoom
       players,
       phase: "countdown",
       countdownEndsAt,
+      phaseStartedAt: new Date().toISOString(),
       gameLog: [],
       message: "Everyone is ready. The game begins in 10 seconds.",
     },
@@ -646,6 +856,37 @@ export async function startRoom(code: string, token: string): Promise<PublicRoom
  * that list never shows in-progress games, and this guards the route the
  * same way regardless of who's calling it.
  */
+/**
+ * A player leaves the room (from the lobby, or gives up mid-game). Removes them
+ * from the roster; if that empties the room, deletes it outright instead of
+ * leaving an orphaned empty room behind. If the leaving player was the host,
+ * hands the host token to the next remaining player.
+ */
+export async function leaveRoom(code: string, token: string): Promise<void> {
+  const state = await loadRoom(code);
+  const player = state.players.find((p) => p.token === token);
+  if (!player) return;
+
+  const remaining = state.players.filter((p) => p.token !== token);
+  if (remaining.length === 0) {
+    await werewolfRoomRepo.deleteByCode(state.code);
+    return;
+  }
+
+  let next: RoomState = {
+    ...state,
+    players: remaining,
+    hostToken: state.hostToken === token ? remaining[0].token : state.hostToken,
+  };
+  next = appendChat(next, {
+    kind: "system",
+    name: null,
+    color: null,
+    text: `${player.name} has left the room.`,
+  });
+  await werewolfRoomRepo.save(next);
+}
+
 export async function deleteRoom(code: string, token: string | null): Promise<void> {
   const state = await loadRoom(code);
   if (token) {
@@ -667,7 +908,11 @@ export async function applyRoomAction(
 ): Promise<PublicRoom> {
   const state = await loadRoom(code);
   requirePlayer(state, token);
-  const next = applyTransition(state, token, action);
+  const transitioned = applyTransition(state, token, action);
+  const next =
+    transitioned.phase !== state.phase
+      ? { ...transitioned, phaseStartedAt: new Date().toISOString() }
+      : transitioned;
   await werewolfRoomRepo.save(next);
   return toPublicRoom(next, token);
 }

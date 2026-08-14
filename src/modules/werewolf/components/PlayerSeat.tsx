@@ -45,15 +45,20 @@ export function PlayerSeat({
   player,
   onClick,
   disabled,
+  selected,
 }: {
   player: SeatLike;
   onClick?: () => void;
   disabled?: boolean;
+  /** Highlights this seat as the pending (not-yet-confirmed) pick. */
+  selected?: boolean;
 }) {
   const content = (
     <>
       <PlayerToken player={player} />
-      <span className="truncate font-serif text-text-sm font-semibold text-[#e5d5b5]">{player.name}</span>
+      <span className="truncate font-serif text-text-sm font-semibold text-[#e5d5b5]">
+        {player.name}
+      </span>
     </>
   );
 
@@ -70,7 +75,12 @@ export function PlayerSeat({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center gap-2 rounded-sm border border-amber-900/45 bg-black/45 px-3 py-2 shadow-inner transition enabled:hover:border-amber-400/70 enabled:hover:bg-amber-950/25 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+      aria-pressed={selected}
+      className={`flex items-center gap-2 rounded-sm border px-3 py-2 shadow-inner transition enabled:hover:border-amber-400/70 enabled:hover:bg-amber-950/25 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+        selected
+          ? "border-amber-400/80 bg-amber-950/35 shadow-[0_0_10px_rgba(251,191,36,0.35)]"
+          : "border-amber-900/45 bg-black/45"
+      }`}
     >
       {content}
     </button>
@@ -81,14 +91,24 @@ export function PlayerSeat({
 export function PlayerPickGrid({
   players,
   onPick,
+  disabled,
+  selectedId,
 }: {
   players: SeatLike[];
   onPick: (id: string) => void;
+  disabled?: boolean;
+  selectedId?: string | null;
 }) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {players.map((p) => (
-        <PlayerSeat key={p.id} player={p} onClick={() => onPick(p.id)} />
+        <PlayerSeat
+          key={p.id}
+          player={p}
+          onClick={() => onPick(p.id)}
+          disabled={disabled}
+          selected={p.id === selectedId}
+        />
       ))}
     </div>
   );

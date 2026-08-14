@@ -6,21 +6,14 @@ import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { BackLink } from "@/foundation/ui/components/BackLink";
 import { CelestialBackground } from "@/foundation/ui/components/CelestialBackground";
-import {
-  AVATARS,
-  MAX_PLAYERS,
-  MIN_PLAYERS,
-  ROLES,
-  type RoleId,
-  rolePoolFor,
-} from "./core/werewolf";
+import { MAX_PLAYERS, MIN_PLAYERS, ROLES, type RoleId, rolePoolFor } from "./core/werewolf";
 import type {
   ChatEntry,
   GameLogEntry,
-  OpenRoomSummary,
   PublicPlayer,
   PublicRoom,
   RoomPhase,
+  RoomSettings,
 } from "./core/room";
 import {
   AnnouncementPanel,
@@ -32,31 +25,42 @@ import {
 } from "./components/shared";
 import { PlayerPickGrid, PlayerSeat } from "./components/PlayerSeat";
 import { useWerewolfOnline } from "./state/use-werewolf-online";
-import {
-  clearParticipantToken,
-  loadParticipantToken,
-  peekParticipantToken,
-} from "./state/participant-storage";
+import { peekParticipantToken } from "./state/participant-storage";
 
 const BACKDROP: Partial<Record<RoomPhase, string>> = {
   "night-wolf": "/werewolf-game/system/night.png",
   "night-seer": "/werewolf-game/system/night.png",
   "night-doctor": "/werewolf-game/system/night.png",
-  dawn: "/werewolf-game/system/night.png",
+  dawn: "/werewolf-game/system/morning.png",
   "hunter-revenge": "/werewolf-game/system/hunter-event.png",
   "day-discuss": "/werewolf-game/system/day-discuss.png",
   "day-vote": "/werewolf-game/system/day-vote.png",
+  "day-runoff": "/werewolf-game/system/day-vote.png",
   "day-result": "/werewolf-game/system/morning.png",
   over: "/werewolf-game/system/morning.png",
 };
 
 const NIGHT_PHASES: RoomPhase[] = ["night-wolf", "night-seer", "night-doctor", "dawn"];
 
-/** True if this browser already holds a player token for that room (same key `useWerewolfOnline`
- *  saves to) — used to offer "Resume" instead of "Join" so a host who hit Back doesn't join their
- *  own room as a second player. */
-function hasStoredToken(code: string): boolean {
-  return Boolean(peekParticipantToken(code));
+/** Seconds left on the room's discuss/vote timer, ticking down live; null when the
+ *  setting is off. The server auto-advances discuss→vote and force-tallies an
+ *  unfinished vote once this hits zero — this is just the client-side countdown. */
+function usePhaseTimer(phaseStartedAt: string | null, cooldownSec: number): number | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!phaseStartedAt || cooldownSec <= 0) return;
+    const timer = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(timer);
+  }, [phaseStartedAt, cooldownSec]);
+  if (!phaseStartedAt || cooldownSec <= 0) return null;
+  return Math.max(0, Math.ceil((Date.parse(phaseStartedAt) + cooldownSec * 1000 - now) / 1000));
+}
+
+function formatTimer(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s === 0 ? `${m}m` : `${m}m ${s}s`;
 }
 
 function Shell({
@@ -64,7 +68,10 @@ function Shell({
   backdropContent,
   wide,
   backHref,
+  backLabel,
+  hideBack,
   stackLeft,
+  backdropInteractive,
   className = "",
   children,
 }: {
@@ -75,9 +82,18 @@ function Shell({
   wide?: boolean;
   /** Where the "Back" link goes — defaults to BackLink's own default (the app home page). */
   backHref?: string;
+  /** Label for the back-navigation link — defaults to BackLink's own default ("Back"). */
+  backLabel?: string;
+  /** Skip the built-in top-left back link entirely — the caller renders its own, elsewhere in `children`. */
+  hideBack?: boolean;
   /** Pins "Back" to the same fixed left column as content below it (e.g. the lobby's
    *  Back → logo → Room Info stack) instead of leaving it in normal flow. */
   stackLeft?: boolean;
+  /** Set when `backdropContent` has its own clickable elements (e.g. the campfire circle's
+   *  kick buttons): makes the foreground content column click-through in the empty space
+   *  between its panels, so the backdrop can be reached. Callers must then opt individual
+   *  foreground pieces back in with `pointer-events-auto` themselves. */
+  backdropInteractive?: boolean;
   /** Optional page-specific root treatment. */
   className?: string;
   children: React.ReactNode;
@@ -88,52 +104,18 @@ function Shell({
     >
       {backdropContent ?? (backdrop ? <Backdrop src={backdrop} /> : <CelestialBackground />)}
       <div
-        className={`relative z-10 mx-auto flex w-full flex-1 flex-col gap-5 p-6 ${wide ? "max-w-5xl" : "max-w-2xl"}`}
+        className={`relative z-10 mx-auto flex w-full flex-1 flex-col gap-5 p-6 ${wide ? "max-w-5xl" : "max-w-2xl"} ${backdropInteractive ? "pointer-events-none" : ""}`}
       >
-        <div className={stackLeft ? "lg:fixed lg:left-6 lg:top-6" : undefined}>
-          <BackLink href={backHref} />
-        </div>
+        {!hideBack && (
+          <div
+            className={`${backdropInteractive ? "pointer-events-auto " : ""}${stackLeft ? "lg:fixed lg:left-6 lg:top-6" : ""}`}
+          >
+            <BackLink href={backHref} label={backLabel} />
+          </div>
+        )}
         {children}
       </div>
     </main>
-  );
-}
-
-/** Grid of selectable character pictures — required before creating or joining a room. */
-function AvatarPicker({
-  selected,
-  onSelect,
-}: {
-  selected: string | null;
-  onSelect: (src: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-200/70">
-        Choose your character
-      </p>
-      <div className="grid grid-cols-5 gap-2 sm:gap-3">
-        {AVATARS.map((src, index) => {
-          const isSelected = src === selected;
-          return (
-            <button
-              key={src}
-              type="button"
-              onClick={() => onSelect(src)}
-              aria-pressed={isSelected}
-              aria-label={`Select character ${index + 1}`}
-              className={`relative aspect-square w-full overflow-hidden rounded-full bg-grey-950/70 ring-2 transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
-                isSelected
-                  ? "scale-105 ring-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.42)]"
-                  : "ring-amber-900/45 grayscale-[25%] hover:scale-105 hover:grayscale-0 hover:ring-amber-500/70"
-              }`}
-            >
-              <Image src={src} alt="" fill sizes="64px" className="object-cover object-top" />
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 
@@ -193,31 +175,20 @@ function FeatureCallout({ icon, title, text }: { icon?: string; title: string; t
   );
 }
 
-function RoomActionButton({
-  children,
-  onClick,
-  disabled,
-  className = "",
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`werewolf-room-action ${className}`}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-}
-
 /** Landing-only backdrop — the whole scene fitted to the viewport (no cropping),
  *  closer to the reference composition than the shared full-bleed `Backdrop`. */
 function LandingBackdrop() {
   return (
     <div aria-hidden className="werewolf-entry-backdrop pointer-events-none">
+      <video
+        className="absolute inset-0 h-full w-full object-cover"
+        src="/werewolf-game/system/werewolf-landing-video.mp4"
+        poster="/werewolf-game/system/werewolf-landing-page.png"
+        autoPlay
+        loop
+        muted
+        playsInline
+      />
       <div className="absolute inset-0 bg-grey-950/55" />
       <div className="absolute inset-0 bg-gradient-to-t from-grey-950 via-grey-950/40 to-transparent" />
     </div>
@@ -257,87 +228,15 @@ function SnowOverlay() {
   );
 }
 
-function LandingScreen({
-  presetCode,
-  busy,
-  error,
-  openRooms,
-  roomsLoading,
-  onCreate,
-  onJoin,
-  onDeleteOpenRoom,
-}: {
-  presetCode?: string;
-  busy: boolean;
-  error: string | null;
-  openRooms: OpenRoomSummary[];
-  roomsLoading: boolean;
-  onCreate: (name: string, avatar: string) => void;
-  onJoin: (code: string, name: string, avatar: string) => void;
-  onDeleteOpenRoom: (code: string) => void;
-}) {
+/** Marketing splash — the room browser now lives on its own page (`/werewolf/rooms`); this
+ *  screen is just the pitch plus the door in. */
+function LandingScreen() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [joinCode, setJoinCode] = useState(presetCode ?? "");
-  const [modalMode, setModalMode] = useState<"create" | "join" | null>(presetCode ? "join" : null);
-  const [roomMembership, setRoomMembership] = useState<
-    Record<string, "checking" | "valid" | "invalid">
-  >({});
-  const trimmedName = name.trim();
-  const canSubmit = Boolean(trimmedName && avatar);
-  const canJoinByCode = canSubmit && joinCode.trim().length > 0;
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function validateStoredMemberships() {
-      const results = await Promise.all(
-        openRooms.map(async (room) => {
-          const token = loadParticipantToken(room.code);
-          if (!token) return [room.code, "invalid"] as const;
-          try {
-            const res = await fetch(
-              `/api/v1/werewolf/rooms/${room.code}?token=${encodeURIComponent(token)}`,
-            );
-            if (res.ok) return [room.code, "valid"] as const;
-          } catch {
-            // Do not claim resume access when membership could not be verified.
-            return [room.code, "checking"] as const;
-          }
-          clearParticipantToken(room.code);
-          return [room.code, "invalid"] as const;
-        }),
-      );
-      if (!cancelled) setRoomMembership(Object.fromEntries(results));
-    }
-
-    void validateStoredMemberships();
-    return () => {
-      cancelled = true;
-    };
-  }, [openRooms]);
-
-  const membershipFor = (code: string) =>
-    roomMembership[code] ?? (hasStoredToken(code) ? "checking" : "invalid");
-  /** A validated room this browser already participates in. */
-  const myRoom = openRooms.find((r) => membershipFor(r.code) === "valid") ?? null;
-  const membershipPending = openRooms.some((r) => membershipFor(r.code) === "checking");
-
-  const openJoinModal = (code?: string) => {
-    if (code) setJoinCode(code);
-    setModalMode("join");
-  };
-
-  const handleConfirm = () => {
-    if (!avatar) return;
-    if (modalMode === "create") onCreate(name, avatar);
-    else onJoin(joinCode, name, avatar);
-  };
 
   return (
     <Shell
       wide
+      hideBack
       className="werewolf-room-list-root"
       backdropContent={
         <>
@@ -346,217 +245,35 @@ function LandingScreen({
         </>
       }
     >
-      <header className="text-center">
-        <p className="font-serif text-[11px] font-bold uppercase tracking-[0.28em] text-amber-300/80">
-          An ancient game of hidden loyalties &middot; 5&ndash;10 players
-        </p>
+      <header className="ml-auto w-full max-w-md text-center">
         <Image
           src="/werewolf-game/system/logo-removebg.png"
           alt="Werewolf — The Hidden Among Us"
           width={630}
           height={246}
-          className="mx-auto mt-1 h-auto w-72 sm:w-96"
+          className="animate-werewolf-logo mx-auto mt-16 h-auto w-72 sm:mt-24 sm:w-96"
           priority
         />
       </header>
 
-      <section
-        className="werewolf-room-ledger werewolf-metal-frame flex flex-col gap-3 p-4 sm:p-5"
-        aria-labelledby="room-ledger-title"
-      >
-        <span aria-hidden className="werewolf-frame-corner werewolf-frame-corner--tl" />
-        <span aria-hidden className="werewolf-frame-corner werewolf-frame-corner--tr" />
-        <span aria-hidden className="werewolf-frame-corner werewolf-frame-corner--bl" />
-        <span aria-hidden className="werewolf-frame-corner werewolf-frame-corner--br" />
-        <div className="werewolf-ledger-header -mx-4 -mt-4 flex flex-col gap-3 px-4 py-3 sm:-mx-5 sm:-mt-5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <div>
-            <p className="werewolf-ancient-heading text-amber-200/80" id="room-ledger-title">
-              Village ledger
-            </p>
-            <p className="mt-1 font-serif text-[11px] text-grey-400">
-              Open gatherings awaiting another voice
-            </p>
-          </div>
-          <div className="flex items-center gap-3 self-stretch sm:self-auto">
-            <RoomActionButton
-              onClick={() => setModalMode("create")}
-              disabled={Boolean(myRoom) || membershipPending}
-              aria-label="Create room"
-              title={myRoom ? "You already have a room open — resume it below." : undefined}
-              className="werewolf-room-action--create w-full min-w-44 px-7 py-2 text-xs sm:w-auto"
-            >
-              Create room
-            </RoomActionButton>
-            <Image
-              src="/werewolf-game/icon-scroll.png"
-              alt=""
-              width={34}
-              height={34}
-              className="hidden h-8 w-8 opacity-70 sm:block"
-            />
-          </div>
-        </div>
-
-        {myRoom && (
-          <p className="text-center text-[11px] text-grey-500">
-            You already have a room open — resume it below to create a new one.
-          </p>
-        )}
-
-        {roomsLoading ? (
-          <p className="py-6 text-center text-text-sm text-grey-500">Looking for open rooms…</p>
-        ) : openRooms.length === 0 ? (
-          <p className="py-6 text-center text-text-sm text-grey-500">
-            No open rooms right now — start one!
-          </p>
-        ) : (
-          <div>
-            <div className="divide-y divide-amber-900/25 sm:hidden">
-              {openRooms.map((room) => {
-                const membership = membershipFor(room.code);
-                return (
-                  <article
-                    key={room.code}
-                    className="werewolf-ledger-row grid grid-cols-2 gap-x-4 gap-y-3 py-4 first:pt-1"
-                  >
-                    <div>
-                      <p className="werewolf-ancient-heading !text-[8px] !text-amber-200/50">
-                        Room
-                      </p>
-                      <p className="mt-1 font-mono font-bold tracking-[0.16em] text-[#ead9b6]">
-                        {room.code}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="werewolf-ancient-heading !text-[8px] !text-amber-200/50">
-                        Keeper
-                      </p>
-                      <p className="mt-1 truncate text-text-sm text-grey-300">{room.hostName}</p>
-                    </div>
-                    <div>
-                      <p className="werewolf-ancient-heading !text-[8px] !text-amber-200/50">
-                        Circle
-                      </p>
-                      <p className="mt-1 text-text-sm text-grey-300">
-                        {room.playerCount}/{room.maxPlayers} gathered
-                      </p>
-                    </div>
-                    <div>
-                      <p className="werewolf-ancient-heading !text-[8px] !text-amber-200/50">
-                        State
-                      </p>
-                      <p className="mt-1 font-serif text-text-sm text-amber-400/80">Gathering</p>
-                    </div>
-                    <div className="col-span-2 flex items-center gap-2 border-t border-amber-900/20 pt-3">
-                      <RoomActionButton
-                        disabled={membership === "checking"}
-                        aria-busy={membership === "checking"}
-                        onClick={() =>
-                          membership === "valid"
-                            ? router.push(`/werewolf/online/${room.code}`)
-                            : openJoinModal(room.code)
-                        }
-                        className="min-w-40 px-6 py-2 text-[11px]"
-                      >
-                        {membership === "valid"
-                          ? "Resume"
-                          : membership === "checking"
-                            ? "Checking…"
-                            : "Join gathering"}
-                      </RoomActionButton>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm(`Delete ${room.hostName}'s room?`))
-                            onDeleteOpenRoom(room.code);
-                        }}
-                        aria-label={`Delete ${room.hostName}'s room`}
-                        className="p-2 text-grey-500 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-            <table className="hidden w-full text-left text-text-sm sm:table">
-              <thead>
-                <tr className="text-[11px] uppercase tracking-[0.15em] text-grey-500">
-                  <th className="pb-2 font-semibold">Room</th>
-                  <th className="pb-2 font-semibold">Owner</th>
-                  <th className="pb-2 font-semibold">Players</th>
-                  <th className="pb-2 font-semibold">Status</th>
-                  <th className="pb-2 text-right font-semibold">Join</th>
-                </tr>
-              </thead>
-              <tbody>
-                {openRooms.map((room) => {
-                  const membership = membershipFor(room.code);
-                  return (
-                    <tr
-                      key={room.code}
-                      className="werewolf-ledger-row border-t border-amber-900/25"
-                    >
-                      <td
-                        data-label="Room"
-                        className="py-3 pr-3 font-mono font-semibold tracking-[0.15em] text-[#ead9b6]"
-                      >
-                        {room.code}
-                      </td>
-                      <td
-                        data-label="Keeper"
-                        className="max-w-[10rem] truncate py-3 pr-3 text-grey-300"
-                      >
-                        {room.hostName}
-                      </td>
-                      <td data-label="Circle" className="py-3 pr-3 text-grey-300">
-                        {room.playerCount}/{room.maxPlayers}
-                      </td>
-                      <td data-label="State" className="py-3 pr-3 font-serif text-amber-400/80">
-                        Gathering
-                      </td>
-                      <td data-label="Passage" className="py-3">
-                        <div className="flex items-center justify-end gap-2">
-                          <RoomActionButton
-                            disabled={membership === "checking"}
-                            aria-busy={membership === "checking"}
-                            onClick={() =>
-                              membership === "valid"
-                                ? router.push(`/werewolf/online/${room.code}`)
-                                : openJoinModal(room.code)
-                            }
-                            className="min-w-24 px-4 py-1.5 text-[11px]"
-                          >
-                            {membership === "valid"
-                              ? "Resume"
-                              : membership === "checking"
-                                ? "Checking…"
-                                : "Join"}
-                          </RoomActionButton>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (window.confirm(`Delete ${room.hostName}'s room?`)) {
-                                onDeleteOpenRoom(room.code);
-                              }
-                            }}
-                            aria-label={`Delete ${room.hostName}'s room`}
-                            title="Delete room"
-                            className="rounded-full p-1 text-grey-500 transition-colors hover:bg-red-400/10 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <div className="ml-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-5 py-8 text-center">
+        <button
+          type="button"
+          onClick={() => router.push("/werewolf/rooms")}
+          aria-label="Start game"
+          className="werewolf-start-link text-lg"
+        >
+          Start Game
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          aria-label="Exit"
+          className="werewolf-start-link text-xs"
+        >
+          Exit
+        </button>
+      </div>
 
       <section
         className="mx-auto mt-auto w-full bg-transparent px-2 pb-2 pt-3 sm:px-4 sm:pb-3"
@@ -585,95 +302,6 @@ function LandingScreen({
           />
         </div>
       </section>
-
-      {modalMode && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-grey-950/90 p-3 backdrop-blur-sm sm:p-6"
-          onClick={() => setModalMode(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="werewolf-room-dialog-title"
-            className="werewolf-create-dialog-shell relative max-h-[calc(100vh-1.5rem)] w-full max-w-xl overflow-y-auto px-7 pb-8 pt-11 shadow-[0_30px_90px_rgba(0,0,0,0.75)] sm:px-12 sm:pb-11 sm:pt-14"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-5 text-center sm:mb-6">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.38em] text-red-400/80">
-                Enter the hidden village
-              </p>
-              <h2
-                id="werewolf-room-dialog-title"
-                className="mt-1 font-serif text-2xl font-black uppercase tracking-[0.12em] text-[#ead9b6] drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)] sm:text-3xl"
-              >
-                {modalMode === "create" ? "Forge a New Pact" : "Answer the Summons"}
-              </h2>
-              <p className="mt-1 text-[11px] text-grey-400">
-                {modalMode === "create"
-                  ? "Name your keeper and choose the face you will wear."
-                  : "Reveal your name, sigil, and the room that calls you."}
-              </p>
-            </div>
-            <div className="absolute right-6 top-7 sm:right-9 sm:top-9">
-              <button
-                type="button"
-                onClick={() => setModalMode(null)}
-                aria-label="Close"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-lg text-grey-500 ring-1 ring-amber-900/40 transition hover:bg-red-950/40 hover:text-red-300 hover:ring-red-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="mx-auto flex max-w-md flex-col gap-4">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-200/70">
-                  Keeper name
-                </span>
-                <input
-                  type="text"
-                  value={name}
-                  maxLength={16}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
-                  aria-label="Your name"
-                  className="w-full rounded-md border border-amber-900/45 bg-black/45 px-4 py-3 text-text-sm text-[#f2e7d0] shadow-inner placeholder:text-grey-600 focus:border-amber-600/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40"
-                />
-              </label>
-
-              {modalMode === "join" && (
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-200/70">
-                    Ancient room code
-                  </span>
-                  <input
-                    type="text"
-                    value={joinCode}
-                    maxLength={6}
-                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    placeholder="Room code"
-                    aria-label="Room code"
-                    className="w-full rounded-md border border-amber-900/45 bg-black/45 px-4 py-3 text-center font-mono text-text-md uppercase tracking-[0.3em] text-[#f2e7d0] shadow-inner placeholder:text-grey-600 placeholder:tracking-normal focus:border-amber-600/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40"
-                  />
-                </label>
-              )}
-
-              <AvatarPicker selected={avatar} onSelect={setAvatar} />
-
-              {error && <p className="text-center text-text-sm text-red-400">{error}</p>}
-
-              <button
-                type="button"
-                disabled={busy || (modalMode === "create" ? !canSubmit : !canJoinByCode)}
-                onClick={handleConfirm}
-                className={`mt-1 w-full rounded-md border border-amber-700/60 bg-gradient-to-b from-[#6e351d] via-[#4d1d14] to-[#280c0b] px-8 py-3 font-serif text-text-md font-black uppercase tracking-[0.16em] text-[#f3dfb6] shadow-[inset_0_1px_0_rgba(255,221,153,0.24),0_5px_18px_rgba(0,0,0,0.4)] transition enabled:hover:scale-[1.02] enabled:hover:border-amber-500 enabled:hover:from-[#824424] disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${modalMode === "create" ? "werewolf-create-dialog-action" : ""}`}
-              >
-                {busy ? "…" : modalMode === "create" ? "Create room" : "Join room"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </Shell>
   );
 }
@@ -757,6 +385,71 @@ function RoomInfoPanel({
   );
 }
 
+const COOLDOWN_OPTIONS = [0, 30, 60, 120, 180, 300] as const;
+
+/** Host-editable house rules — locked for everyone once the game leaves the lobby. */
+function SettingsPanel({
+  settings,
+  isHost,
+  onChange,
+}: {
+  settings: RoomSettings;
+  isHost: boolean;
+  onChange: (patch: Partial<RoomSettings>) => void;
+}) {
+  const toggles: { key: keyof RoomSettings; label: string }[] = [
+    { key: "hideRoleOnDeath", label: "Hide role on death" },
+    { key: "hideWolvesRemaining", label: "Hide wolves remaining" },
+    { key: "showVoters", label: "Show who voted for whom" },
+  ];
+  return (
+    <div className="werewolf-ancient-panel flex flex-col gap-3 p-4">
+      <p className="werewolf-ancient-heading">House Rules</p>
+      <div className="flex items-center justify-between gap-3 text-text-sm">
+        <span className="text-grey-400">Discuss &amp; vote timer</span>
+        {isHost ? (
+          <select
+            value={settings.actionCooldownSec}
+            onChange={(e) => onChange({ actionCooldownSec: Number(e.target.value) })}
+            className="rounded-sm border border-amber-900/40 bg-black/45 px-2 py-1 text-[11px] font-bold text-[#ead9b6] focus:border-amber-600/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40"
+          >
+            {COOLDOWN_OPTIONS.map((sec) => (
+              <option key={sec} value={sec}>
+                {sec === 0 ? "Off" : formatTimer(sec)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="font-serif font-bold text-[#ead9b6]">
+            {settings.actionCooldownSec === 0 ? "Off" : formatTimer(settings.actionCooldownSec)}
+          </span>
+        )}
+      </div>
+      {toggles.map(({ key, label }) => (
+        <button
+          key={key}
+          type="button"
+          disabled={!isHost}
+          onClick={() => onChange({ [key]: !settings[key] } as Partial<RoomSettings>)}
+          aria-pressed={Boolean(settings[key])}
+          className="flex items-center justify-between gap-3 text-left text-text-sm enabled:cursor-pointer disabled:cursor-default"
+        >
+          <span className="text-grey-400">{label}</span>
+          <span
+            className={`rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] ${
+              settings[key]
+                ? "border-amber-700/60 text-amber-300"
+                : "border-grey-700/60 text-grey-500"
+            }`}
+          >
+            {settings[key] ? "On" : "Off"}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const ROLE_ORDER: RoleId[] = ["werewolf", "villager", "seer", "doctor", "hunter"];
 
 /** Transparent-bg portraits for the role-distribution panel — shown frameless so they stand on their own. */
@@ -832,11 +525,19 @@ const SEAT_POSITIONS: { x: number; y: number }[] = [
  * wider) so it fills the screen edge-to-edge while staying perfectly in sync
  * with the seat percentages below — no JS resize handling needed.
  */
-function CampfireCircle({ players }: { players: PublicPlayer[] }) {
+function CampfireCircle({
+  players,
+  isHost,
+  onKick,
+}: {
+  players: PublicPlayer[];
+  isHost: boolean;
+  onKick: (playerId: string) => void;
+}) {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
       <div
-        className="pointer-events-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+        className="animate-werewolf-fade-in-op pointer-events-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
         style={{ width: "max(100vw, 150vh)", height: "max(100vh, 66.6667vw)" }}
       >
         <Image
@@ -856,8 +557,14 @@ function CampfireCircle({ players }: { players: PublicPlayer[] }) {
           return (
             <div
               key={p.id}
-              className="absolute hidden -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 lg:flex"
-              style={{ left: `${seat.x}%`, top: `${seat.y}%`, width: "5.5%", minWidth: 26 }}
+              className="animate-werewolf-fade-in-op absolute hidden -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 lg:flex"
+              style={{
+                left: `${seat.x}%`,
+                top: `${seat.y}%`,
+                width: "5.5%",
+                minWidth: 26,
+                animationDelay: `${0.2 + i * 0.08}s`,
+              }}
             >
               <div className="relative w-full">
                 {p.isHost && (
@@ -894,6 +601,20 @@ function CampfireCircle({ players }: { players: PublicPlayer[] }) {
                     </span>
                   )}
                 </div>
+                {isHost && !p.isYou && !p.isHost && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Remove ${p.name} from the room?`)) {
+                        onKick(p.id);
+                      }
+                    }}
+                    aria-label={`Remove ${p.name}`}
+                    className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full border border-red-900/60 bg-grey-950 text-[9px] font-bold leading-none text-red-400 shadow-md transition-colors hover:border-red-500 hover:bg-red-950 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
               <span className="max-w-[4rem] truncate rounded-sm border border-amber-900/45 bg-[#090b0e]/90 px-2 py-0.5 font-serif text-[10px] font-semibold text-[#e6d8bb] shadow-lg sm:max-w-[5rem] sm:text-[11px]">
                 {p.name}
@@ -931,7 +652,15 @@ function CountdownDisplay({ endsAt }: { endsAt: string }) {
 }
 
 /** Bottom-right panel: system join notices + player chat, polled along with the rest of the room. */
-function ChatPanel({ entries, onSend }: { entries: ChatEntry[]; onSend: (text: string) => void }) {
+function ChatPanel({
+  entries,
+  onSend,
+  title = "Whispers",
+}: {
+  entries: ChatEntry[];
+  onSend: (text: string) => void;
+  title?: string;
+}) {
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
 
@@ -942,7 +671,7 @@ function ChatPanel({ entries, onSend }: { entries: ChatEntry[]; onSend: (text: s
 
   return (
     <div className="werewolf-ancient-panel flex h-56 flex-col gap-2 p-4 lg:h-64">
-      <p className="werewolf-ancient-heading">Whispers</p>
+      <p className="werewolf-ancient-heading">{title}</p>
       <div ref={listRef} className="flex-1 space-y-1.5 overflow-y-auto pr-1 text-text-sm">
         {entries.length === 0 && <p className="text-grey-500">No messages yet.</p>}
         {entries.map((e) =>
@@ -998,6 +727,8 @@ function LobbyScreen({
   onDelete,
   onSendChat,
   onReady,
+  onUpdateSettings,
+  onKick,
 }: {
   view: PublicRoom;
   onStart: () => void;
@@ -1005,18 +736,45 @@ function LobbyScreen({
   onDelete: () => void;
   onSendChat: (text: string) => void;
   onReady: (ready: boolean) => void;
+  onUpdateSettings: (patch: Partial<RoomSettings>) => void;
+  onKick: (playerId: string) => void;
 }) {
   const me = view.players.find((p) => p.isYou);
   const allReady = view.players.length >= MIN_PLAYERS && view.players.every((p) => p.ready);
   const isCountingDown = view.phase === "countdown" && Boolean(view.countdownEndsAt);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   return (
     <Shell
       wide
-      backHref="/werewolf"
+      backHref="/werewolf/rooms"
       stackLeft
-      backdropContent={<CampfireCircle players={view.players} />}
+      backdropInteractive
+      backdropContent={
+        <CampfireCircle players={view.players} isHost={view.isHost} onKick={onKick} />
+      }
     >
-      <header className="text-center lg:fixed lg:left-6 lg:top-16 lg:w-[220px] lg:text-left">
+      <button
+        type="button"
+        onClick={() => setSettingsOpen(true)}
+        aria-label="Open house rules settings"
+        className="animate-werewolf-fade-in pointer-events-auto fixed right-4 top-4 z-20 flex items-center gap-1.5 rounded-sm border border-amber-900/45 bg-black/55 px-3 py-1.5 shadow-inner transition-colors hover:border-amber-600/70 hover:bg-amber-950/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+      >
+        <Image
+          src="/werewolf-game/system/setting-gear.png"
+          alt=""
+          width={32}
+          height={32}
+          className="h-8 w-8 object-contain"
+        />
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300">
+          Setting
+        </span>
+      </button>
+
+      <header
+        className="animate-werewolf-fade-in text-center lg:fixed lg:left-6 lg:top-16 lg:w-[220px] lg:text-left"
+        style={{ animationDelay: "0.05s" }}
+      >
         <Image
           src="/werewolf-game/system/logo-removebg.png"
           alt="Werewolf — The Hidden Among Us"
@@ -1026,7 +784,10 @@ function LobbyScreen({
         />
       </header>
 
-      <div className="mx-auto flex flex-col items-center lg:fixed lg:left-1/2 lg:top-5 lg:z-20 lg:-translate-x-1/2">
+      <div
+        className="animate-werewolf-fade-in pointer-events-auto mx-auto flex flex-col items-center lg:fixed lg:left-1/2 lg:top-5 lg:z-20 lg:-translate-x-1/2"
+        style={{ animationDelay: "0.1s" }}
+      >
         {isCountingDown && view.countdownEndsAt ? (
           <CountdownDisplay endsAt={view.countdownEndsAt} />
         ) : view.isHost && allReady ? (
@@ -1059,8 +820,11 @@ function LobbyScreen({
         )}
       </div>
 
-      <div className="mt-20 flex flex-1 flex-col items-center justify-center gap-5 pb-28 lg:mt-0 lg:pb-0">
-        <div className="flex w-full max-w-md flex-col gap-4 lg:fixed lg:left-6 lg:top-44 lg:max-w-[220px]">
+      <div className="pointer-events-none mt-20 flex flex-1 flex-col items-center justify-center gap-5 pb-28 lg:mt-0 lg:pb-0">
+        <div
+          className="animate-werewolf-fade-in pointer-events-auto flex w-full max-w-md flex-col gap-4 lg:fixed lg:left-6 lg:top-44 lg:max-h-[calc(100vh-18rem)] lg:max-w-[220px] lg:overflow-y-auto lg:pr-1"
+          style={{ animationDelay: "0.15s" }}
+        >
           <RoomInfoPanel
             code={view.code}
             playerCount={view.players.length}
@@ -1068,7 +832,7 @@ function LobbyScreen({
             onDelete={onDelete}
           />
           <GameLogPanel entries={view.gameLog} />
-          <div className="werewolf-ancient-panel grid grid-cols-2 gap-2 p-3 lg:hidden">
+          <div className="werewolf-ancient-panel grid grid-cols-2 gap-2 p-3">
             <p className="werewolf-ancient-heading col-span-2 mb-1">Village Circle</p>
             {view.players.map((player) => (
               <div
@@ -1095,7 +859,7 @@ function LobbyScreen({
                     </span>
                   )}
                 </span>
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block truncate font-serif text-[11px] font-semibold text-[#dfcfaf]">
                     {player.name}
                     {player.isHost ? " · Host" : ""}
@@ -1111,13 +875,19 @@ function LobbyScreen({
           </div>
         </div>
 
-        <div className="flex w-full max-w-md flex-col gap-4 lg:fixed lg:right-6 lg:top-1/2 lg:max-w-[250px] lg:-translate-y-1/2">
+        <div
+          className="animate-werewolf-fade-in pointer-events-auto flex w-full max-w-md flex-col gap-4 lg:fixed lg:right-6 lg:top-1/2 lg:max-w-[250px] lg:-translate-y-1/2"
+          style={{ animationDelay: "0.2s" }}
+        >
           <RoleDistributionPanel playerCount={view.players.length} />
           <ChatPanel entries={view.chat} onSend={onSendChat} />
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-3 lg:fixed lg:bottom-5 lg:left-[15%] lg:z-20 lg:-translate-x-1/2">
+      <div
+        className="animate-werewolf-fade-in pointer-events-auto mx-auto flex w-full max-w-sm flex-col items-center gap-3 lg:fixed lg:bottom-5 lg:left-[15%] lg:z-20 lg:-translate-x-1/2"
+        style={{ animationDelay: "0.25s" }}
+      >
         <button
           type="button"
           onClick={() => onReady(!me?.ready)}
@@ -1129,10 +899,10 @@ function LobbyScreen({
           <Image
             src={
               me?.ready
-                ? "/werewolf-game/system/ready-removebg.png"
-                : "/werewolf-game/system/not ready.png"
+                ? "/werewolf-game/system/not ready.png"
+                : "/werewolf-game/system/ready-removebg.png"
             }
-            alt={me?.ready ? "Ready" : "Not ready"}
+            alt={me?.ready ? "Not ready" : "Ready"}
             fill
             sizes="256px"
             className="object-contain"
@@ -1144,12 +914,71 @@ function LobbyScreen({
         <button
           type="button"
           onClick={onLeave}
-          className="mx-auto font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-200/60 underline-offset-4 hover:text-amber-100 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+          className="animate-werewolf-fade-in pointer-events-auto mx-auto font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-200/60 underline-offset-4 hover:text-amber-100 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+          style={{ animationDelay: "0.3s" }}
         >
           Leave room
         </button>
       )}
+
+      {settingsOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="House Rules"
+          className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setSettingsOpen(false)}
+        >
+          <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <SettingsPanel
+              settings={view.settings}
+              isHost={view.isHost}
+              onChange={onUpdateSettings}
+            />
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(false)}
+              className="mt-3 w-full rounded-sm border border-amber-900/50 bg-black/40 py-2 text-center font-serif text-text-sm font-semibold text-[#dfcfaf] transition-colors hover:border-amber-600/70 hover:bg-amber-950/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </Shell>
+  );
+}
+
+/** Live "time left" note for the discuss/vote timer — hidden when the setting is off. */
+function PhaseTimerNote({ seconds }: { seconds: number | null }) {
+  if (seconds === null) return null;
+  return (
+    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-400/80">
+      {seconds > 0 ? `Time left: ${formatTimer(seconds)}` : "Time's up…"}
+    </p>
+  );
+}
+
+/** Shown when the host has turned on "show who voted for whom" — live during voting and after. */
+function VoteDetailsList({
+  voteDetails,
+  players,
+}: {
+  voteDetails: Record<string, string> | null;
+  players: PublicPlayer[];
+}) {
+  if (!voteDetails || Object.keys(voteDetails).length === 0) return null;
+  const nameById = new Map(players.map((p) => [p.id, p.name]));
+  return (
+    <div className="werewolf-ancient-panel mx-auto flex w-full max-w-xs flex-col gap-1 p-3">
+      <p className="werewolf-ancient-heading">Votes so far</p>
+      {Object.entries(voteDetails).map(([voterId, targetId]) => (
+        <p key={voterId} className="text-text-sm text-grey-300">
+          <span className="font-semibold text-[#ead9b6]">{nameById.get(voterId) ?? "Someone"}</span>{" "}
+          &rarr; {nameById.get(targetId) ?? "Someone"}
+        </p>
+      ))}
+    </div>
   );
 }
 
@@ -1213,6 +1042,37 @@ function RoleBadge({ role, avatar, alive }: { role: RoleId; avatar?: string; ali
 
 /** The wolves' victim-selection screen: role banner, framed avatar grid, and a
  *  two-step select-then-confirm hunt (matches the "Confirm the Hunt" reference). */
+/** Select-then-confirm target picker — the seer/doctor/hunter counterpart to WolfHuntPanel's hunt UI. */
+function ConfirmPickPanel({
+  kicker,
+  kickerClassName,
+  title,
+  players,
+  onConfirm,
+  confirmLabel = "Confirm",
+}: {
+  kicker: string;
+  kickerClassName: string;
+  title: string;
+  players: PublicPlayer[];
+  onConfirm: (id: string) => void;
+  confirmLabel?: string;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  return (
+    <div className="werewolf-game-stage werewolf-game-stage--night mx-auto flex w-full max-w-sm flex-col gap-4 px-6 py-7">
+      <div className="text-center">
+        <p className={`werewolf-stage-kicker ${kickerClassName}`}>{kicker}</p>
+        <h2 className="werewolf-stage-title mt-1">{title}</h2>
+      </div>
+      <PlayerPickGrid players={players} onPick={setSelected} selectedId={selected} />
+      <PrimaryButton onClick={() => selected && onConfirm(selected)} disabled={!selected}>
+        {confirmLabel}
+      </PrimaryButton>
+    </div>
+  );
+}
+
 function WolfHuntPanel({
   nightNumber,
   targets,
@@ -1378,20 +1238,32 @@ function WolfHuntPanel({
 export function WerewolfOnline({ code }: { code?: string }) {
   const reduced = useReducedMotion() ?? false;
   const o = useWerewolfOnline(code);
+  const router = useRouter();
+  const phaseTimer = usePhaseTimer(
+    o.view?.phaseStartedAt ?? null,
+    o.view?.settings.actionCooldownSec ?? 0,
+  );
+
+  // A direct link to a room (/werewolf/online/[code]) with no saved session for it — send the
+  // visitor to the room list to pick a name/avatar and join, instead of joining here. Checked
+  // with the synchronous peek (not the hook's deliberately-deferred restore) so a session that
+  // was just saved (e.g. right after creating the room) isn't redirected away from under itself.
+  const hasJoinedRef = useRef(false);
+  useEffect(() => {
+    if (o.joined) hasJoinedRef.current = true;
+  }, [o.joined]);
+  useEffect(() => {
+    // Once this tab has actually joined, leaving is handled entirely by leaveRoom's own
+    // redirect — skip this one so a just-cleared token doesn't bounce back here with the
+    // old room's code still attached (which would pop the join modal open again).
+    if (code && !o.joined && !hasJoinedRef.current && !peekParticipantToken(code)) {
+      router.replace(`/werewolf/rooms?code=${code}`);
+    }
+  }, [code, o.joined, router]);
 
   if (!o.joined) {
-    return (
-      <LandingScreen
-        presetCode={code}
-        busy={o.busy}
-        error={o.error}
-        openRooms={o.openRooms}
-        roomsLoading={o.roomsLoading}
-        onCreate={o.createGame}
-        onJoin={o.joinGame}
-        onDeleteOpenRoom={o.deleteOpenRoom}
-      />
-    );
+    if (code) return <LoadingScreen />;
+    return <LandingScreen />;
   }
 
   if (!o.view) return <LoadingScreen />;
@@ -1406,6 +1278,8 @@ export function WerewolfOnline({ code }: { code?: string }) {
         onDelete={o.deleteRoom}
         onSendChat={o.sendChat}
         onReady={o.setReady}
+        onUpdateSettings={o.updateSettings}
+        onKick={o.kickPlayer}
       />
     );
   }
@@ -1456,15 +1330,14 @@ export function WerewolfOnline({ code }: { code?: string }) {
           }
           const targets = alive.filter((p) => p.role !== "seer");
           return (
-            <div className="werewolf-game-stage werewolf-game-stage--night mx-auto flex w-full max-w-sm flex-col gap-4 px-6 py-7">
-              <div className="text-center">
-                <p className="werewolf-stage-kicker text-violet-300">
-                  Night {view.nightNumber} &middot; Seer
-                </p>
-                <h2 className="werewolf-stage-title mt-1">Peer into someone&apos;s nature</h2>
-              </div>
-              <PlayerPickGrid players={targets} onPick={o.chooseSeerTarget} />
-            </div>
+            <ConfirmPickPanel
+              kicker={`Night ${view.nightNumber} · Seer`}
+              kickerClassName="text-violet-300"
+              title="Peer into someone's nature"
+              players={targets}
+              onConfirm={o.chooseSeerTarget}
+              confirmLabel="Confirm the reading"
+            />
           );
         }
         return <WaitingCard text="The seer is peering into the darkness…" />;
@@ -1473,15 +1346,14 @@ export function WerewolfOnline({ code }: { code?: string }) {
       case "night-doctor": {
         if (you?.alive && you.role === "doctor") {
           return (
-            <div className="werewolf-game-stage werewolf-game-stage--night mx-auto flex w-full max-w-sm flex-col gap-4 px-6 py-7">
-              <div className="text-center">
-                <p className="werewolf-stage-kicker text-emerald-300">
-                  Night {view.nightNumber} &middot; Doctor
-                </p>
-                <h2 className="werewolf-stage-title mt-1">Choose someone to protect</h2>
-              </div>
-              <PlayerPickGrid players={alive} onPick={o.chooseDoctorTarget} />
-            </div>
+            <ConfirmPickPanel
+              kicker={`Night ${view.nightNumber} · Doctor`}
+              kickerClassName="text-emerald-300"
+              title="Choose someone to protect"
+              players={alive}
+              onConfirm={o.chooseDoctorTarget}
+              confirmLabel="Confirm the protection"
+            />
           );
         }
         return <WaitingCard text="The doctor is choosing who to protect…" />;
@@ -1504,13 +1376,16 @@ export function WerewolfOnline({ code }: { code?: string }) {
       case "hunter-revenge": {
         if (you?.id === view.hunterRevengeFor) {
           return (
-            <div className="werewolf-game-stage werewolf-game-stage--danger mx-auto flex w-full max-w-sm flex-col gap-4 px-6 py-7">
-              <div className="text-center">
-                <RolePortrait role={ROLES.hunter} size={72} />
-                <p className="werewolf-stage-kicker mt-2 text-orange-300">Your final shot</p>
-                <h2 className="werewolf-stage-title mt-1">Take one more with you</h2>
-              </div>
-              <PlayerPickGrid players={alive} onPick={o.chooseHunterTarget} />
+            <div className="flex flex-col items-center gap-3">
+              <RolePortrait role={ROLES.hunter} size={72} />
+              <ConfirmPickPanel
+                kicker="Your final shot"
+                kickerClassName="text-orange-300"
+                title="Take one more with you"
+                players={alive}
+                onConfirm={o.chooseHunterTarget}
+                confirmLabel="Confirm the shot"
+              />
             </div>
           );
         }
@@ -1524,6 +1399,7 @@ export function WerewolfOnline({ code }: { code?: string }) {
               <p className="werewolf-stage-kicker text-amber-300">Day</p>
               <h2 className="werewolf-stage-title mt-1">Discuss who the wolves might be</h2>
               <p className="mt-1 text-text-sm text-grey-400">Talk it over, then move to a vote.</p>
+              <PhaseTimerNote seconds={phaseTimer} />
             </div>
             <div className="flex flex-wrap justify-center gap-2">
               {alive.map((p) => (
@@ -1544,8 +1420,49 @@ export function WerewolfOnline({ code }: { code?: string }) {
                   {view.votesIn} of {view.votesNeeded} voted
                 </p>
                 <h2 className="werewolf-stage-title mt-1">Who do you accuse?</h2>
+                <PhaseTimerNote seconds={phaseTimer} />
               </div>
               <PlayerPickGrid players={targets} onPick={o.castVote} />
+              <VoteDetailsList voteDetails={view.voteDetails} players={view.players} />
+            </div>
+          );
+        }
+        return (
+          <div className="flex flex-col items-center gap-3">
+            <WaitingCard
+              text={
+                you?.alive
+                  ? `Waiting for the rest of the village to vote (${view.votesIn}/${view.votesNeeded})…`
+                  : "The dead don't vote — watch and wait."
+              }
+            />
+            <PhaseTimerNote seconds={phaseTimer} />
+            <VoteDetailsList voteDetails={view.voteDetails} players={view.players} />
+          </div>
+        );
+      }
+
+      case "day-runoff": {
+        const candidate = view.players.find((p) => p.id === view.runoffCandidateId);
+        if (you?.alive && !view.youHaveVotedRunoff) {
+          return (
+            <div className="werewolf-game-stage werewolf-game-stage--day mx-auto flex w-full max-w-sm flex-col items-center gap-4 px-6 py-7 text-center">
+              <p className="werewolf-stage-kicker text-amber-300">
+                {view.runoffVotesIn} of {view.runoffVotesNeeded} voted
+              </p>
+              <h2 className="werewolf-stage-title mt-1">
+                Cast out {candidate?.name ?? "the accused"}?
+              </h2>
+              <div className="mt-2 flex justify-center gap-3">
+                <PrimaryButton onClick={() => o.castRunoffVote(true)}>Yes, cast out</PrimaryButton>
+                <button
+                  type="button"
+                  onClick={() => o.castRunoffVote(false)}
+                  className="rounded-sm border border-amber-900/50 bg-black/35 px-7 py-3 font-serif text-text-md font-semibold text-[#dfcfaf] transition-colors hover:border-amber-600/70 hover:bg-amber-950/20 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                >
+                  No, spare them
+                </button>
+              </div>
             </div>
           );
         }
@@ -1553,7 +1470,7 @@ export function WerewolfOnline({ code }: { code?: string }) {
           <WaitingCard
             text={
               you?.alive
-                ? `Waiting for the rest of the village to vote (${view.votesIn}/${view.votesNeeded})…`
+                ? `Waiting for the rest of the verdict (${view.runoffVotesIn}/${view.runoffVotesNeeded})…`
                 : "The dead don't vote — watch and wait."
             }
           />
@@ -1631,9 +1548,14 @@ export function WerewolfOnline({ code }: { code?: string }) {
             Werewolves of Aster Village
           </h1>
           <p className="text-text-sm text-grey-400">
-            {alive.length} alive &middot; {wolvesRemaining}{" "}
-            {wolvesRemaining === 1 ? "wolf" : "wolves"} remain
-            {wolvesRemaining === 1 ? "s" : ""}
+            {alive.length} alive
+            {wolvesRemaining !== null && (
+              <>
+                {" "}
+                &middot; {wolvesRemaining} {wolvesRemaining === 1 ? "wolf" : "wolves"} remain
+                {wolvesRemaining === 1 ? "s" : ""}
+              </>
+            )}
           </p>
         </div>
       </header>
@@ -1649,6 +1571,12 @@ export function WerewolfOnline({ code }: { code?: string }) {
       <div className="mx-auto w-full max-w-sm lg:fixed lg:left-6 lg:top-40 lg:w-[220px]">
         <GameLogPanel entries={view.gameLog} />
       </div>
+
+      {view.wolfChat !== null && (
+        <div className="mx-auto w-full max-w-sm lg:fixed lg:right-6 lg:top-40 lg:w-[220px]">
+          <ChatPanel entries={view.wolfChat} onSend={o.sendWolfChat} title="Wolf Den" />
+        </div>
+      )}
 
       <motion.div
         key={view.phase}
