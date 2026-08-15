@@ -2,7 +2,11 @@ import { cookies } from "next/headers";
 import { verifyMessage } from "viem";
 import type { AuthResponse, WalletVerifyRequest } from "@/shared";
 import { verifyWalletNonceToken } from "@/server/auth/wallet-nonce";
-import { SESSION_COOKIE, createSession } from "@/server/auth/session-store";
+import {
+  SESSION_COOKIE,
+  SESSION_COOKIE_MAX_AGE_SECONDS,
+  createSession,
+} from "@/server/auth/session-store";
 import { userRepo } from "@/server/repositories";
 import { buildSession } from "@/server/services/session-service";
 import { handleError, jsonOk } from "@/server/http";
@@ -47,6 +51,7 @@ export async function POST(req: Request) {
       sameSite: "lax",
       path: "/",
       secure: process.env.NODE_ENV === "production",
+      maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
     });
     return jsonOk<AuthResponse>({
       session: buildSession(user.id, user.username, user.walletAddress),

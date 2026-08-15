@@ -5,6 +5,7 @@ import type {
   OpenRoomSummary,
   PublicPlayer,
   PublicRoom,
+  RoomPhase,
   RoomPlayer,
   RoomSettings,
   RoomState,
@@ -115,6 +116,7 @@ function beginNight(state: RoomState, night: number): RoomState {
       countdownEndsAt: null,
       wolfTargetId: null,
       doctorProtectId: null,
+      doctorLastProtectId: state.doctorProtectId,
       seerTargetId: null,
       lastNightKilledId: null,
       hunterOrigin: null,
@@ -171,19 +173,28 @@ function resolveNightState(state: RoomState): RoomState {
 }
 
 function applyWolfTarget(state: RoomState, token: string, targetId: string): RoomState {
-  requireAliveRole(state, token, "werewolf", "werewolf");
+  const actor = requireAliveRole(state, token, "werewolf", "werewolf");
   if (state.phase !== "night-wolf")
     throw serviceError("WEREWOLF_BAD_PHASE", "Not the wolves' turn.", 409);
-  const target = findAliveTarget(state, targetId);
-  if (target.role === "werewolf")
-    throw serviceError("WEREWOLF_VALIDATION", "The pack can't hunt its own.", 400);
+  if (targetId === actor.id)
+    throw serviceError("WEREWOLF_VALIDATION", "You can't target yourself.", 400);
+  findAliveTarget(state, targetId);
 
-  const next = { ...state, wolfTargetId: targetId };
-  if (isRoleAlive(next, "seer"))
-    return { ...next, phase: "night-seer", message: "The seer wakes." };
-  if (isRoleAlive(next, "doctor"))
-    return { ...next, phase: "night-doctor", message: "The doctor wakes." };
-  return resolveNightState(next);
+  return advanceFromWolfPhase({ ...state, wolfTargetId: targetId });
+}
+
+/** After the wolves' target is set (or their turn times out), advance to whichever
+ *  night role is still alive, in order: seer, then doctor, then resolve the night. */
+function advanceFromWolfPhase(state: RoomState): RoomState {
+  if (isRoleAlive(state, "seer"))
+    return { ...state, phase: "night-seer", message: "The seer wakes." };
+  return advanceFromSeerPhase(state);
+}
+
+function advanceFromSeerPhase(state: RoomState): RoomState {
+  if (isRoleAlive(state, "doctor"))
+    return { ...state, phase: "night-doctor", message: "The doctor wakes." };
+  return resolveNightState(state);
 }
 
 function applySeerTarget(state: RoomState, token: string, targetId: string): RoomState {
@@ -199,15 +210,19 @@ function applySeerContinue(state: RoomState, token: string): RoomState {
   if (state.phase !== "night-seer" || !state.seerTargetId) {
     throw serviceError("WEREWOLF_BAD_PHASE", "Inspect someone first.", 409);
   }
-  if (isRoleAlive(state, "doctor"))
-    return { ...state, phase: "night-doctor", message: "The doctor wakes." };
-  return resolveNightState(state);
+  return advanceFromSeerPhase(state);
 }
 
 function applyDoctorTarget(state: RoomState, token: string, targetId: string): RoomState {
   requireAliveRole(state, token, "doctor", "doctor");
   if (state.phase !== "night-doctor")
     throw serviceError("WEREWOLF_BAD_PHASE", "Not the doctor's turn.", 409);
+  if (targetId === state.doctorLastProtectId)
+    throw serviceError(
+      "WEREWOLF_VALIDATION",
+      "You can't protect the same person two nights in a row.",
+      400,
+    );
   findAliveTarget(state, targetId);
   return resolveNightState({ ...state, doctorProtectId: targetId });
 }
@@ -428,6 +443,7 @@ function applyNewPlayers(state: RoomState, token: string): RoomState {
     countdownEndsAt: null,
     wolfTargetId: null,
     doctorProtectId: null,
+    doctorLastProtectId: null,
     seerTargetId: null,
     lastNightKilledId: null,
     hunterRevengeFor: null,
@@ -452,6 +468,7 @@ function appendChat(state: RoomState, entry: Omit<ChatEntry, "id" | "at">): Room
 }
 
 const MAX_ACTION_COOLDOWN_SEC = 300;
+const MAX_NIGHT_TIMEOUT_SEC = 3600;
 
 function applyUpdateSettings(
   state: RoomState,
@@ -470,7 +487,15 @@ function applyUpdateSettings(
   ) {
     throw serviceError("WEREWOLF_VALIDATION", "Invalid cooldown.", 400);
   }
+  if (
+    !Number.isFinite(settings.nightActionTimeoutSec) ||
+    settings.nightActionTimeoutSec < 0 ||
+    settings.nightActionTimeoutSec > MAX_NIGHT_TIMEOUT_SEC
+  ) {
+    throw serviceError("WEREWOLF_VALIDATION", "Invalid night action timeout.", 400);
+  }
   settings.actionCooldownSec = Math.round(settings.actionCooldownSec);
+  settings.nightActionTimeoutSec = Math.round(settings.nightActionTimeoutSec);
   return { ...state, settings };
 }
 
@@ -567,6 +592,22 @@ function applyTransition(state: RoomState, token: string, action: WerewolfAction
 
 // ---- Redaction: the per-viewer public snapshot sent over HTTP ----
 
+const NIGHT_ACTOR_ROLE: Partial<Record<RoomPhase, RoleId>> = {
+  "night-wolf": "werewolf",
+  "night-seer": "seer",
+  "night-doctor": "doctor",
+};
+
+const NIGHT_WAITING_MESSAGE =
+  "Night has fallen. Something is happening in the dark, but you can't see what.";
+
+function publicMessageFor(state: RoomState, viewer: RoomPlayer | undefined): string {
+  const actorRole = NIGHT_ACTOR_ROLE[state.phase];
+  if (!actorRole) return state.message;
+  const isActing = Boolean(viewer && viewer.alive && viewer.role === actorRole);
+  return isActing ? state.message : NIGHT_WAITING_MESSAGE;
+}
+
 function toPublicRoom(state: RoomState, viewerToken: string): PublicRoom {
   const viewer = state.players.find((p) => p.token === viewerToken);
   const isOver = state.phase === "over";
@@ -605,6 +646,9 @@ function toPublicRoom(state: RoomState, viewerToken: string): PublicRoom {
     }
   }
 
+  const doctorLastProtectId =
+    state.phase === "night-doctor" && viewer?.role === "doctor" ? state.doctorLastProtectId : null;
+
   const aliveIds = state.players.filter((p) => p.alive).map((p) => p.id);
   const votesIn = aliveIds.filter((id) => state.votes[id] !== undefined).length;
   const runoffVotesIn = aliveIds.filter((id) => state.runoffVotes[id] !== undefined).length;
@@ -621,12 +665,13 @@ function toPublicRoom(state: RoomState, viewerToken: string): PublicRoom {
 
   return {
     code: state.code,
+    roomName: state.roomName,
     phase: state.phase,
     nightNumber: state.nightNumber,
     countdownEndsAt: state.countdownEndsAt ?? null,
     phaseStartedAt: state.phaseStartedAt,
     settings: state.settings,
-    message: state.message,
+    message: publicMessageFor(state, viewer),
     winner: state.winner,
     isHost: viewerToken === state.hostToken,
     you: viewer
@@ -637,6 +682,7 @@ function toPublicRoom(state: RoomState, viewerToken: string): PublicRoom {
       ? null
       : state.players.filter((p) => p.alive && p.role === "werewolf").length,
     seerVision,
+    doctorLastProtectId,
     lastNightKilledId: state.lastNightKilledId,
     hunterRevengeFor: state.hunterRevengeFor,
     dayEliminatedId: state.runoffResult?.eliminated ? state.runoffCandidateId : null,
@@ -725,6 +771,7 @@ export async function createRoom(
     ],
     wolfTargetId: null,
     doctorProtectId: null,
+    doctorLastProtectId: null,
     seerTargetId: null,
     lastNightKilledId: null,
     hunterRevengeFor: null,
@@ -789,11 +836,55 @@ export async function joinRoom(
   return { token, view: toPublicRoom(next, token) };
 }
 
+/** Recovers a seat when a player's local token is lost (e.g. cleared browser storage) —
+ *  unlike joinRoom, works in any phase, since the whole point is getting back into a
+ *  game already in progress. Matches purely by display name (no accounts exist), so this
+ *  is intentionally NOT the default join path — the client only offers it as an explicit
+ *  fallback once a normal join has already been rejected for that reason. */
+export async function reclaimSeat(
+  code: string,
+  name: string,
+): Promise<{ token: string; view: PublicRoom }> {
+  const state = await loadRoom(code);
+  const trimmed = name.trim();
+  const matches = state.players.filter((p) => p.name.toLowerCase() === trimmed.toLowerCase());
+  if (matches.length === 0) {
+    throw serviceError("WEREWOLF_NOT_FOUND", "No player with that name in this room.", 404);
+  }
+  if (matches.length > 1) {
+    throw serviceError(
+      "WEREWOLF_VALIDATION",
+      "Multiple players share that name — ask the host for help.",
+      409,
+    );
+  }
+
+  const player = matches[0];
+  const newToken = randomUUID();
+  const wasHost = state.hostToken === player.token;
+  const players = state.players.map((p) => (p.id === player.id ? { ...p, token: newToken } : p));
+  const next = appendChat(
+    { ...state, players, hostToken: wasHost ? newToken : state.hostToken },
+    { kind: "system", name: null, color: null, text: `${player.name} reconnected to the game.` },
+  );
+  await werewolfRoomRepo.save(next);
+  return { token: newToken, view: toPublicRoom(next, newToken) };
+}
+
 /** True once the discuss/vote timer (settings.actionCooldownSec) has run out for the
  *  current phase. 0 (Off) never expires. */
 function phaseTimerExpired(state: RoomState): boolean {
   if (!state.settings.actionCooldownSec) return false;
   return Date.now() >= Date.parse(state.phaseStartedAt) + state.settings.actionCooldownSec * 1000;
+}
+
+/** True once a night role's timeout (settings.nightActionTimeoutSec) has run out without
+ *  them acting. 0 (Off) never expires — the game waits indefinitely, as before. */
+function nightActionTimerExpired(state: RoomState): boolean {
+  if (!state.settings.nightActionTimeoutSec) return false;
+  return (
+    Date.now() >= Date.parse(state.phaseStartedAt) + state.settings.nightActionTimeoutSec * 1000
+  );
 }
 
 export async function getRoomView(code: string, token: string): Promise<PublicRoom> {
@@ -811,6 +902,15 @@ export async function getRoomView(code: string, token: string): Promise<PublicRo
     await werewolfRoomRepo.save(state);
   } else if (state.phase === "day-vote" && phaseTimerExpired(state)) {
     state = { ...resolveDayVote(state, state.votes), phaseStartedAt: new Date().toISOString() };
+    await werewolfRoomRepo.save(state);
+  } else if (state.phase === "night-wolf" && nightActionTimerExpired(state)) {
+    state = { ...advanceFromWolfPhase(state), phaseStartedAt: new Date().toISOString() };
+    await werewolfRoomRepo.save(state);
+  } else if (state.phase === "night-seer" && nightActionTimerExpired(state)) {
+    state = { ...advanceFromSeerPhase(state), phaseStartedAt: new Date().toISOString() };
+    await werewolfRoomRepo.save(state);
+  } else if (state.phase === "night-doctor" && nightActionTimerExpired(state)) {
+    state = { ...resolveNightState(state), phaseStartedAt: new Date().toISOString() };
     await werewolfRoomRepo.save(state);
   }
   return toPublicRoom(state, token);

@@ -2,6 +2,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 /** httpOnly cookie name carrying the signed session token. */
 export const SESSION_COOKIE = "aster_session";
+/** Keep the signed-in identity stable across browser/computer restarts. */
+export const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 /**
  * Stateless, signed session tokens of the form `<userId>.<hmac>`.

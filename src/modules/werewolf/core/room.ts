@@ -59,6 +59,10 @@ export interface GameLogEntry {
 export interface RoomSettings {
   /** Seconds action buttons stay locked after a phase begins. 0 disables the lock. */
   actionCooldownSec: number;
+  /** Seconds a night role (wolves/seer/doctor) has to act before their turn is skipped
+   *  (no kill/vision/protection that night) and the game moves on. 0 disables the skip —
+   *  useful for long-running games where a role-holder might be away for a while. */
+  nightActionTimeoutSec: number;
   /** Keep a dead player's role hidden from everyone but themselves. */
   hideRoleOnDeath: boolean;
   /** Hide the "N wolves remain" count from the phase header. */
@@ -69,6 +73,7 @@ export interface RoomSettings {
 
 export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   actionCooldownSec: 0,
+  nightActionTimeoutSec: 0,
   hideRoleOnDeath: false,
   hideWolvesRemaining: false,
   showVoters: false,
@@ -88,6 +93,9 @@ export interface RoomState {
   players: RoomPlayer[];
   wolfTargetId: string | null;
   doctorProtectId: string | null;
+  /** Who the doctor protected the PREVIOUS night — the doctor can't pick the same
+   *  person twice in a row. Cleared to null at the start of night 1 / a new game. */
+  doctorLastProtectId: string | null;
   seerTargetId: string | null;
   lastNightKilledId: string | null;
   hunterRevengeFor: string | null;
@@ -139,6 +147,7 @@ export interface SeerVision {
 /** The redacted, per-viewer snapshot returned by the API. */
 export interface PublicRoom {
   code: string;
+  roomName: string;
   phase: RoomPhase;
   nightNumber: number;
   countdownEndsAt: string | null;
@@ -152,6 +161,9 @@ export interface PublicRoom {
   /** Alive-wolf count — safe to reveal (matches the hotseat header) since it never names names. Null when the host hides it. */
   wolvesRemaining: number | null;
   seerVision: SeerVision | null;
+  /** Who the doctor protected last night — non-null only for the doctor viewer, so they
+   *  know who they can't pick again tonight. Null for everyone else. */
+  doctorLastProtectId: string | null;
   lastNightKilledId: string | null;
   hunterRevengeFor: string | null;
   /** Who actually died from today's vote, once the runoff resolves — null if spared or still pending. */

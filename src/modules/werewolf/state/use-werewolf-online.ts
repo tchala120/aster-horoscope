@@ -13,6 +13,7 @@ import {
   loadParticipantToken,
   saveParticipantToken,
 } from "./participant-storage";
+import { useWerewolfStorageOwner } from "./use-werewolf-storage-owner";
 
 const POLL_MS = 2000;
 const ROOMS_POLL_MS = 4000;
@@ -31,10 +32,11 @@ async function parseJson<T>(res: Response): Promise<T> {
  * Drives an online Werewolf room: create/join, poll the redacted room view
  * every couple seconds, and post actions. The room code lives in the URL
  * (/werewolf/online/[code]); the player's secret token is cached in
- * sessionStorage per code so refreshes resume without sharing one player's identity
- * with every tab in the browser profile.
+ * localStorage per code so it survives refreshes and closing the browser
+ * entirely, letting a game be picked up again days later.
  */
 export function useWerewolfOnline(initialCode?: string) {
+  const storageReady = useWerewolfStorageOwner();
   const router = useRouter();
   const [code, setCode] = useState<string | null>(initialCode?.toUpperCase() ?? null);
   // Keep the first client render identical to SSR; the mount effect below restores
@@ -51,13 +53,13 @@ export function useWerewolfOnline(initialCode?: string) {
   // A hard-loaded room page is server-rendered before localStorage exists. Restore the
   // participant token after mount; the room poll below validates it and clears stale tokens.
   useEffect(() => {
-    if (!code || token) return;
+    if (!storageReady || !code || token) return;
     const timer = window.setTimeout(() => {
       const saved = loadParticipantToken(code);
       if (saved) setToken(saved);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [code, token]);
+  }, [code, storageReady, token]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -176,6 +178,34 @@ export function useWerewolfOnline(initialCode?: string) {
     [router],
   );
 
+  /** Recovers a seat after a normal join was rejected because the game already started
+   *  (e.g. this browser's saved token was lost) — matches purely by display name. */
+  const reclaimGame = useCallback(
+    async (joinCode: string, name: string) => {
+      setBusy(true);
+      setError(null);
+      const upper = joinCode.trim().toUpperCase();
+      try {
+        const res = await fetch(`/api/v1/werewolf/rooms/${upper}/reclaim`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+        const data = await parseJson<{ token: string; view: PublicRoom }>(res);
+        saveParticipantToken(upper, data.token);
+        setCode(upper);
+        setToken(data.token);
+        setView(data.view);
+        router.push(`/werewolf/online/${upper}`);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not reclaim that seat.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [router],
+  );
+
   const start = useCallback(async () => {
     if (!code || !token) return;
     setError(null);
@@ -249,13 +279,16 @@ export function useWerewolfOnline(initialCode?: string) {
     try {
       const res = await fetch(`/api/v1/werewolf/rooms/${roomCode}`, { method: "DELETE" });
       await parseJson<{ deleted: true }>(res);
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not delete that room.");
+      return false;
     }
   }, []);
 
   return {
     code,
+    storageReady,
     joined,
     view,
     error,
@@ -264,6 +297,7 @@ export function useWerewolfOnline(initialCode?: string) {
     roomsLoading,
     createGame,
     joinGame,
+    reclaimGame,
     start,
     leaveRoom,
     deleteRoom,

@@ -24,8 +24,11 @@ import {
   TEAM_LABEL,
 } from "./components/shared";
 import { PlayerPickGrid, PlayerSeat } from "./components/PlayerSeat";
+import { WerewolfLoadingScreen } from "./components/WerewolfLoadingScreen";
+import { avatarVideoFor } from "./avatar-media";
 import { useWerewolfOnline } from "./state/use-werewolf-online";
 import { peekParticipantToken } from "./state/participant-storage";
+import { useKnownWerewolfRooms } from "./state/use-known-rooms";
 
 const BACKDROP: Partial<Record<RoomPhase, string>> = {
   "night-wolf": "/werewolf-game/system/night.png",
@@ -42,6 +45,11 @@ const BACKDROP: Partial<Record<RoomPhase, string>> = {
 
 const NIGHT_PHASES: RoomPhase[] = ["night-wolf", "night-seer", "night-doctor", "dawn"];
 
+/** Shown to non-acting players during every night sub-phase — identical text so
+ *  which role is currently acting can't be inferred from the message. */
+const NIGHT_WAITING_TEXT =
+  "The village sleeps. Something is happening in the dark, but you can't see what.";
+
 /** Seconds left on the room's discuss/vote timer, ticking down live; null when the
  *  setting is off. The server auto-advances discuss→vote and force-tallies an
  *  unfinished vote once this hits zero — this is just the client-side countdown. */
@@ -54,6 +62,21 @@ function usePhaseTimer(phaseStartedAt: string | null, cooldownSec: number): numb
   }, [phaseStartedAt, cooldownSec]);
   if (!phaseStartedAt || cooldownSec <= 0) return null;
   return Math.max(0, Math.ceil((Date.parse(phaseStartedAt) + cooldownSec * 1000 - now) / 1000));
+}
+
+const NIGHT_ACTION_PHASES: RoomPhase[] = ["night-wolf", "night-seer", "night-doctor"];
+
+/** The cooldown/timeout to count down for the current phase — discuss/vote use
+ *  actionCooldownSec, the three night-role phases use nightActionTimeoutSec. */
+function phaseCooldownFor(view: PublicRoom | null): number {
+  if (!view) return 0;
+  if (view.phase === "day-discuss" || view.phase === "day-vote") {
+    return view.settings.actionCooldownSec;
+  }
+  if (NIGHT_ACTION_PHASES.includes(view.phase)) {
+    return view.settings.nightActionTimeoutSec;
+  }
+  return 0;
 }
 
 function formatTimer(seconds: number): string {
@@ -232,6 +255,8 @@ function SnowOverlay() {
  *  screen is just the pitch plus the door in. */
 function LandingScreen() {
   const router = useRouter();
+  const { rooms: myRooms, loading: myRoomsLoading } = useKnownWerewolfRooms();
+  const continueRoom = !myRoomsLoading && myRooms.length > 0 ? myRooms[0] : null;
 
   return (
     <Shell
@@ -257,11 +282,21 @@ function LandingScreen() {
       </header>
 
       <div className="ml-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-5 py-8 text-center">
+        {continueRoom && (
+          <button
+            type="button"
+            onClick={() => router.push(`/werewolf/online/${continueRoom.code}`)}
+            aria-label={`Continue ${continueRoom.roomName}`}
+            className="werewolf-start-link text-lg"
+          >
+            Continue Game
+          </button>
+        )}
         <button
           type="button"
           onClick={() => router.push("/werewolf/rooms")}
           aria-label="Start game"
-          className="werewolf-start-link text-lg"
+          className={continueRoom ? "werewolf-start-link text-xs" : "werewolf-start-link text-lg"}
         >
           Start Game
         </button>
@@ -307,24 +342,7 @@ function LandingScreen() {
 }
 
 function LoadingScreen() {
-  return (
-    <Shell backdrop="/werewolf-game/village-night.png">
-      <div
-        className="werewolf-game-stage werewolf-game-stage--night mx-auto mt-20 flex w-full max-w-sm flex-col items-center gap-4 px-8 py-9 text-center"
-        role="status"
-      >
-        <Image
-          src="/werewolf-game/icon-moon.png"
-          alt=""
-          width={44}
-          height={44}
-          className="h-11 w-11 opacity-80"
-        />
-        <p className="werewolf-stage-kicker text-violet-300">Crossing the forest</p>
-        <p className="font-serif text-text-md text-[#ddd2c0]">Connecting to Aster Village…</p>
-      </div>
-    </Shell>
-  );
+  return <WerewolfLoadingScreen />;
 }
 
 /** Top-left panel: shareable room code + player count, styled to sit over the campfire scene. */
@@ -386,6 +404,7 @@ function RoomInfoPanel({
 }
 
 const COOLDOWN_OPTIONS = [0, 30, 60, 120, 180, 300] as const;
+const NIGHT_TIMEOUT_OPTIONS = [0, 60, 300, 600, 1800, 3600] as const;
 
 /** Host-editable house rules — locked for everyone once the game leaves the lobby. */
 function SettingsPanel({
@@ -422,6 +441,28 @@ function SettingsPanel({
         ) : (
           <span className="font-serif font-bold text-[#ead9b6]">
             {settings.actionCooldownSec === 0 ? "Off" : formatTimer(settings.actionCooldownSec)}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center justify-between gap-3 text-text-sm">
+        <span className="text-grey-400">Night action timeout</span>
+        {isHost ? (
+          <select
+            value={settings.nightActionTimeoutSec}
+            onChange={(e) => onChange({ nightActionTimeoutSec: Number(e.target.value) })}
+            className="rounded-sm border border-amber-900/40 bg-black/45 px-2 py-1 text-[11px] font-bold text-[#ead9b6] focus:border-amber-600/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40"
+          >
+            {NIGHT_TIMEOUT_OPTIONS.map((sec) => (
+              <option key={sec} value={sec}>
+                {sec === 0 ? "Off" : formatTimer(sec)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="font-serif font-bold text-[#ead9b6]">
+            {settings.nightActionTimeoutSec === 0
+              ? "Off"
+              : formatTimer(settings.nightActionTimeoutSec)}
           </span>
         )}
       </div>
@@ -584,14 +625,17 @@ function CampfireCircle({
                       : "0 2px 10px rgba(0,0,0,0.8)",
                   }}
                 >
-                  {p.avatar ? (
-                    <Image
-                      src={p.avatar}
-                      alt=""
-                      fill
-                      sizes="60px"
-                      className="object-cover object-top"
+                  {avatarVideoFor(p.avatar) ? (
+                    <video
+                      src={avatarVideoFor(p.avatar)}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="absolute inset-0 h-full w-full object-cover object-top"
                     />
+                  ) : p.avatar ? (
+                    <Image src={p.avatar} alt="" fill sizes="60px" className="object-cover object-top" />
                   ) : (
                     <span
                       className="flex h-full w-full items-center justify-center text-text-md font-bold text-grey-950"
@@ -1144,6 +1188,20 @@ function WolfHuntPanel({
                     `}
                     />
                   </span>
+                  {p.role === "werewolf" && (
+                    <span
+                      className="absolute -right-1 -top-1 h-6 w-6 overflow-hidden rounded-full border border-red-900/60 bg-grey-950"
+                      title="Fellow werewolf"
+                    >
+                      <Image
+                        src="/werewolf-game/system/wolf-icon.png"
+                        alt="Fellow werewolf"
+                        fill
+                        sizes="24px"
+                        className="object-cover"
+                      />
+                    </span>
+                  )}
                 </div>
 
                 <span
@@ -1239,10 +1297,7 @@ export function WerewolfOnline({ code }: { code?: string }) {
   const reduced = useReducedMotion() ?? false;
   const o = useWerewolfOnline(code);
   const router = useRouter();
-  const phaseTimer = usePhaseTimer(
-    o.view?.phaseStartedAt ?? null,
-    o.view?.settings.actionCooldownSec ?? 0,
-  );
+  const phaseTimer = usePhaseTimer(o.view?.phaseStartedAt ?? null, phaseCooldownFor(o.view));
 
   // A direct link to a room (/werewolf/online/[code]) with no saved session for it — send the
   // visitor to the room list to pick a name/avatar and join, instead of joining here. Checked
@@ -1256,10 +1311,16 @@ export function WerewolfOnline({ code }: { code?: string }) {
     // Once this tab has actually joined, leaving is handled entirely by leaveRoom's own
     // redirect — skip this one so a just-cleared token doesn't bounce back here with the
     // old room's code still attached (which would pop the join modal open again).
-    if (code && !o.joined && !hasJoinedRef.current && !peekParticipantToken(code)) {
+    if (
+      o.storageReady &&
+      code &&
+      !o.joined &&
+      !hasJoinedRef.current &&
+      !peekParticipantToken(code)
+    ) {
       router.replace(`/werewolf/rooms?code=${code}`);
     }
-  }, [code, o.joined, router]);
+  }, [code, o.joined, o.storageReady, router]);
 
   if (!o.joined) {
     if (code) return <LoadingScreen />;
@@ -1293,16 +1354,24 @@ export function WerewolfOnline({ code }: { code?: string }) {
     switch (view.phase) {
       case "night-wolf": {
         if (you?.alive && you.role === "werewolf") {
-          const targets = alive.filter((p) => p.role !== "werewolf");
+          const targets = alive.filter((p) => !p.isYou);
           return (
-            <WolfHuntPanel
-              nightNumber={view.nightNumber}
-              targets={targets}
-              onConfirm={o.chooseWolfTarget}
-            />
+            <div className="flex flex-col items-center gap-2">
+              <WolfHuntPanel
+                nightNumber={view.nightNumber}
+                targets={targets}
+                onConfirm={o.chooseWolfTarget}
+              />
+              <PhaseTimerNote seconds={phaseTimer} />
+            </div>
           );
         }
-        return <WaitingCard text="The wolves are choosing their victim…" />;
+        return (
+          <div className="flex flex-col items-center gap-3">
+            <WaitingCard text={NIGHT_WAITING_TEXT} />
+            <PhaseTimerNote seconds={phaseTimer} />
+          </div>
+        );
       }
 
       case "night-seer": {
@@ -1325,38 +1394,62 @@ export function WerewolfOnline({ code }: { code?: string }) {
                   .
                 </p>
                 <PrimaryButton onClick={o.continueSeer}>Continue</PrimaryButton>
+                <PhaseTimerNote seconds={phaseTimer} />
               </div>
             );
           }
           const targets = alive.filter((p) => p.role !== "seer");
           return (
-            <ConfirmPickPanel
-              kicker={`Night ${view.nightNumber} · Seer`}
-              kickerClassName="text-violet-300"
-              title="Peer into someone's nature"
-              players={targets}
-              onConfirm={o.chooseSeerTarget}
-              confirmLabel="Confirm the reading"
-            />
+            <div className="flex flex-col items-center gap-2">
+              <ConfirmPickPanel
+                kicker={`Night ${view.nightNumber} · Seer`}
+                kickerClassName="text-violet-300"
+                title="Peer into someone's nature"
+                players={targets}
+                onConfirm={o.chooseSeerTarget}
+                confirmLabel="Confirm the reading"
+              />
+              <PhaseTimerNote seconds={phaseTimer} />
+            </div>
           );
         }
-        return <WaitingCard text="The seer is peering into the darkness…" />;
+        return (
+          <div className="flex flex-col items-center gap-3">
+            <WaitingCard text={NIGHT_WAITING_TEXT} />
+            <PhaseTimerNote seconds={phaseTimer} />
+          </div>
+        );
       }
 
       case "night-doctor": {
         if (you?.alive && you.role === "doctor") {
+          const lastProtected = view.players.find((p) => p.id === view.doctorLastProtectId);
+          const targets = alive.filter((p) => p.id !== view.doctorLastProtectId);
           return (
-            <ConfirmPickPanel
-              kicker={`Night ${view.nightNumber} · Doctor`}
-              kickerClassName="text-emerald-300"
-              title="Choose someone to protect"
-              players={alive}
-              onConfirm={o.chooseDoctorTarget}
-              confirmLabel="Confirm the protection"
-            />
+            <div className="flex flex-col items-center gap-2">
+              <ConfirmPickPanel
+                kicker={`Night ${view.nightNumber} · Doctor`}
+                kickerClassName="text-emerald-300"
+                title="Choose someone to protect"
+                players={targets}
+                onConfirm={o.chooseDoctorTarget}
+                confirmLabel="Confirm the protection"
+              />
+              {lastProtected && (
+                <p className="text-center text-[11px] text-grey-500">
+                  You protected {lastProtected.name} last night — pick someone else tonight.
+                </p>
+              )}
+              <PhaseTimerNote seconds={phaseTimer} />
+            </div>
           );
         }
-        return <WaitingCard text="The doctor is choosing who to protect…" />;
+        return (
+          <div className="flex flex-col items-center gap-3">
+            <WaitingCard text={NIGHT_WAITING_TEXT} />
+            <PhaseTimerNote seconds={phaseTimer} />
+          </div>
+        );
       }
 
       case "dawn":

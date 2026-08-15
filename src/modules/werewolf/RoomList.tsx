@@ -4,20 +4,24 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BackLink } from "@/foundation/ui/components/BackLink";
-import { AVATARS } from "./core/werewolf";
+import { AVATARS, MAX_PLAYERS } from "./core/werewolf";
+import type { RoomPhase } from "./core/room";
 import { useWerewolfOnline } from "./state/use-werewolf-online";
-import {
-  clearParticipantToken,
-  loadParticipantToken,
-  peekParticipantToken,
-} from "./state/participant-storage";
+import { useKnownWerewolfRooms } from "./state/use-known-rooms";
+import { avatarVideoFor } from "./avatar-media";
 
 const ASSET = "/werewolf-game/room-list";
+const CHARACTER_FRAME = "/werewolf-game/system/character-frame.png";
+const ANSWER_SUMMON_TITLE = "/werewolf-game/system/anwser-summon.png";
+const SUMMON_BAR = "/werewolf-game/system/summon-bar.png";
+const CLOSE_BUTTON = "/werewolf-game/system/x-button.png";
 
-/** True if this browser already holds a player token for that room — used to offer "Resume"
- *  instead of "Join" so a host who hit Back doesn't join their own room as a second player. */
-function hasStoredToken(code: string): boolean {
-  return Boolean(peekParticipantToken(code));
+/** The public lobby list only ever shows "Gathering" (it's lobby-phase by construction);
+ *  a merged-in own-room can be in any phase, so its label needs to reflect that. */
+function phaseLabel(phase: RoomPhase): string {
+  if (phase === "lobby" || phase === "countdown") return "Gathering";
+  if (phase === "over") return "Game Over";
+  return "In Progress";
 }
 
 /** Grid of selectable character pictures — required before creating or joining a room. */
@@ -28,28 +32,56 @@ function AvatarPicker({
   selected: string | null;
   onSelect: (src: string) => void;
 }) {
+  const [hovered, setHovered] = useState<string | null>(null);
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-red-300/70">
-        Choose your character
-      </p>
-      <div className="grid grid-cols-5 gap-2 sm:gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex items-center gap-3 text-[#ca6c5d]">
+        <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#7c402f] to-[#7c402f]/20" />
+        <p className="shrink-0 text-center text-[12px] font-semibold uppercase tracking-[0.24em] sm:text-[14px]">
+          Choose your character
+        </p>
+        <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#7c402f] to-[#7c402f]/20" />
+      </div>
+      <div className="werewolf-room-scroll grid max-h-[280px] grid-cols-5 gap-2 overflow-y-auto px-1 py-1 sm:max-h-[340px] sm:gap-3">
         {AVATARS.map((src, index) => {
           const isSelected = src === selected;
+          const hoverVideo = avatarVideoFor(src);
           return (
             <button
               key={src}
               type="button"
               onClick={() => onSelect(src)}
+              onMouseEnter={() => hoverVideo && setHovered(src)}
+              onMouseLeave={() => setHovered(null)}
               aria-pressed={isSelected}
               aria-label={`Select character ${index + 1}`}
-              className={`relative aspect-square w-full overflow-hidden rounded-full bg-grey-950/70 ring-2 transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 ${
+              className={`group relative aspect-square w-full rounded-full bg-[#080706] p-[3px] transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
                 isSelected
-                  ? "scale-105 ring-red-400 shadow-[0_0_18px_rgba(248,113,113,0.45)]"
-                  : "ring-red-900/45 grayscale-[25%] hover:scale-105 hover:grayscale-0 hover:ring-red-500/70"
+                  ? "scale-[1.07] shadow-[0_0_8px_2px_rgba(255,72,35,0.9),0_0_24px_rgba(206,38,17,0.8)]"
+                  : "grayscale-[18%] hover:scale-[1.1] hover:grayscale-0 hover:shadow-[0_0_8px_2px_rgba(255,58,30,0.75),0_0_24px_5px_rgba(175,22,12,0.55)]"
               }`}
             >
-              <Image src={src} alt="" fill sizes="64px" className="object-cover object-top" />
+              <span aria-hidden className="werewolf-avatar-fire absolute -inset-1 rounded-full opacity-0 group-hover:opacity-100" />
+              <span className="absolute inset-0 rounded-full border border-[#9a6b42]/85 shadow-[inset_0_0_0_2px_#17110d,inset_0_0_0_3px_rgba(195,132,70,0.38)] transition-colors duration-200 group-hover:border-[#e05a38]" />
+              <span className="relative block h-full w-full overflow-hidden rounded-full border border-black/90">
+                <Image src={src} alt="" fill sizes="96px" className="object-cover object-top" />
+                {hoverVideo && (hovered === src || isSelected) && (
+                  <video
+                    src={hoverVideo}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="absolute inset-0 h-full w-full object-cover object-top"
+                  />
+                )}
+                <span className="absolute inset-0 rounded-full bg-gradient-to-b from-transparent via-transparent to-black/40" />
+              </span>
+              {isSelected && (
+                <span className="absolute -bottom-1 left-1/2 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border border-[#e58947] bg-[#351209] text-[14px] text-[#f2bd6d] shadow-[0_0_10px_rgba(239,76,36,0.9)]">
+                  ✓
+                </span>
+              )}
             </button>
           );
         })}
@@ -65,13 +97,17 @@ export function WerewolfRoomList() {
   const searchParams = useSearchParams();
   const presetCode = searchParams.get("code") ?? undefined;
   const o = useWerewolfOnline(presetCode);
+  const {
+    rooms: myRooms,
+    loading: myRoomsLoading,
+    refresh: refreshMyRooms,
+  } = useKnownWerewolfRooms();
 
   const [roomName, setRoomName] = useState("");
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState(presetCode ?? "");
   const [modalMode, setModalMode] = useState<"create" | "join" | null>(presetCode ? "join" : null);
-  const [roomMembership, setRoomMembership] = useState<Record<string, Membership>>({});
   const trimmedRoomName = roomName.trim();
   const trimmedName = name.trim();
   const canCreate = Boolean(trimmedRoomName && trimmedName && avatar);
@@ -82,40 +118,27 @@ export function WerewolfRoomList() {
     if (o.joined && o.code) router.replace(`/werewolf/online/${o.code}`);
   }, [o.joined, o.code, router]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function validateStoredMemberships() {
-      const results = await Promise.all(
-        o.openRooms.map(async (room) => {
-          const token = loadParticipantToken(room.code);
-          if (!token) return [room.code, "invalid"] as const;
-          try {
-            const res = await fetch(
-              `/api/v1/werewolf/rooms/${room.code}?token=${encodeURIComponent(token)}`,
-            );
-            if (res.ok) return [room.code, "valid"] as const;
-          } catch {
-            // Do not claim resume access when membership could not be verified.
-            return [room.code, "checking"] as const;
-          }
-          clearParticipantToken(room.code);
-          return [room.code, "invalid"] as const;
-        }),
-      );
-      if (!cancelled) setRoomMembership(Object.fromEntries(results));
-    }
-
-    void validateStoredMemberships();
-    return () => {
-      cancelled = true;
-    };
-  }, [o.openRooms]);
+  const myRoomCodes = new Set(myRooms.map((r) => r.code));
+  // Public lobby rooms, plus any of my own rooms the public list wouldn't show (already
+  // past the lobby phase, or full) — so a game in progress never "disappears" on the browser.
+  const displayRooms = [
+    ...o.openRooms.map((room) => ({ ...room, phase: "lobby" as RoomPhase })),
+    ...myRooms
+      .filter((room) => !o.openRooms.some((r) => r.code === room.code))
+      .map((room) => ({
+        code: room.code,
+        roomName: room.roomName,
+        hostName: room.isHost ? "You" : "Someone",
+        playerCount: room.playerCount,
+        maxPlayers: MAX_PLAYERS,
+        phase: room.phase,
+      })),
+  ];
 
   const membershipFor = (code: string): Membership =>
-    roomMembership[code] ?? (hasStoredToken(code) ? "checking" : "invalid");
-  const myRoom = o.openRooms.find((r) => membershipFor(r.code) === "valid") ?? null;
-  const membershipPending = o.openRooms.some((r) => membershipFor(r.code) === "checking");
+    myRoomsLoading ? "checking" : myRoomCodes.has(code) ? "valid" : "invalid";
+  const myRoom = myRooms[0] ?? null;
+  const membershipPending = myRoomsLoading;
 
   const openJoinModal = (code?: string) => {
     if (code) setJoinCode(code);
@@ -181,13 +204,13 @@ export function WerewolfRoomList() {
                 <p className="m-auto text-center text-text-sm text-grey-300">
                   Looking for open rooms…
                 </p>
-              ) : o.openRooms.length === 0 ? (
+              ) : displayRooms.length === 0 ? (
                 <p className="m-auto max-w-xs text-center text-text-sm text-grey-300">
                   No open rooms right now — forge one below.
                 </p>
               ) : (
                 <div className="werewolf-room-scroll flex max-h-[264px] min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1 pt-6 sm:max-h-[344px]">
-                  {o.openRooms.map((room, index) => {
+                  {displayRooms.map((room, index) => {
                     const membership = membershipFor(room.code);
                     return (
                       <div
@@ -220,7 +243,7 @@ export function WerewolfRoomList() {
                         </span>
                         <div className="flex flex-1 items-center justify-start">
                           <span className="hidden shrink-0 text-text-md font-semibold text-amber-400 sm:inline">
-                            Gathering
+                            {phaseLabel(room.phase)}
                           </span>
                         </div>
                         <button
@@ -254,17 +277,21 @@ export function WerewolfRoomList() {
                                 : "Join"}
                           </span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (window.confirm(`Delete "${room.roomName}"?`))
-                              o.deleteOpenRoom(room.code);
-                          }}
-                          aria-label={`Delete ${room.roomName}`}
-                          className="shrink-0 px-1 text-grey-500 transition-colors hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
-                        >
-                          ✕
-                        </button>
+                        {room.phase === "lobby" && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (window.confirm(`Delete "${room.roomName}"?`)) {
+                                const deleted = await o.deleteOpenRoom(room.code);
+                                if (deleted) await refreshMyRooms();
+                              }
+                            }}
+                            aria-label={`Delete ${room.roomName}`}
+                            className="shrink-0 px-1 text-grey-500 transition-colors hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -304,105 +331,144 @@ export function WerewolfRoomList() {
 
       {modalMode && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-3 backdrop-blur-sm sm:p-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-1 backdrop-blur-[2px] sm:p-2"
           onClick={() => setModalMode(null)}
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="werewolf-room-dialog-title"
-            className="werewolf-create-dialog-shell relative max-h-[calc(100vh-1.5rem)] w-full max-w-xl overflow-y-auto px-7 pb-8 pt-11 shadow-[0_30px_90px_rgba(0,0,0,0.75)] sm:px-12 sm:pb-11 sm:pt-14"
+            className="werewolf-character-dialog relative isolate aspect-auto max-h-[calc(100dvh-0.5rem)] w-full max-w-[1380px] overflow-x-hidden overflow-y-auto px-[7%] pb-[8%] pt-[8%] shadow-[0_30px_90px_rgba(0,0,0,0.8)] sm:aspect-[1672/941] sm:overflow-hidden sm:px-[6.5%] sm:pb-[7%] sm:pt-[7.5%]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-5 text-center sm:mb-6">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.38em] text-red-400/80">
-                Enter the hidden village
-              </p>
+            <Image
+              src={CHARACTER_FRAME}
+              alt=""
+              fill
+              sizes="(max-width: 640px) 100vw, 1380px"
+              className="pointer-events-none -z-10 origin-top scale-[1.08] object-fill"
+              priority
+            />
+
+            <div className="mb-4 text-center sm:mb-5">
               <h2
                 id="werewolf-room-dialog-title"
-                className="mt-1 font-serif text-2xl font-black uppercase tracking-[0.12em] text-[#ead9b6] drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)] sm:text-3xl"
+                className="sr-only"
               >
                 {modalMode === "create" ? "Forge a New Pact" : "Answer the Summons"}
               </h2>
-              <p className="mt-1 text-[11px] text-grey-400">
-                {modalMode === "create"
-                  ? "Name your keeper and choose the face you will wear."
-                  : "Reveal your name, sigil, and the room that calls you."}
+              <div aria-hidden className="relative mx-auto h-10 w-[72%] max-w-[620px] overflow-hidden sm:h-14">
+                <Image
+                  src={ANSWER_SUMMON_TITLE}
+                  alt=""
+                  width={1649}
+                  height={954}
+                  className="absolute left-1/2 top-1/2 h-auto w-full -translate-x-1/2 -translate-y-1/2 object-contain"
+                />
+              </div>
+              <div aria-hidden className="relative mx-auto -mt-1 h-5 w-[70%] max-w-[680px] overflow-hidden sm:h-7">
+                <Image
+                  src={SUMMON_BAR}
+                  alt=""
+                  width={2172}
+                  height={724}
+                  className="absolute left-1/2 top-1/2 h-auto w-full -translate-x-1/2 -translate-y-1/2 object-contain"
+                />
+              </div>
+              <p className="mt-2 text-[13px] font-bold tracking-wide text-[#9f8d76] sm:text-[15px]">
+                Reveal your name, sigil, and the room that calls you.
               </p>
             </div>
-            <div className="absolute right-6 top-7 sm:right-9 sm:top-9">
+            <div className="absolute right-[3%] top-[13%] sm:right-[3%] sm:top-[14%]">
               <button
                 type="button"
                 onClick={() => setModalMode(null)}
                 aria-label="Close"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-lg text-grey-500 ring-1 ring-red-900/40 transition hover:bg-red-950/40 hover:text-red-300 hover:ring-red-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                className="relative h-11 w-11 rounded-full transition hover:scale-110 hover:brightness-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 sm:h-14 sm:w-14"
               >
-                ✕
+                <Image src={CLOSE_BUTTON} alt="" fill sizes="56px" className="object-contain" />
               </button>
             </div>
 
-            <div className="mx-auto flex max-w-md flex-col gap-4">
-              {modalMode === "create" && (
+            <div className="mx-auto flex w-full flex-col gap-6 sm:flex-row sm:items-stretch sm:gap-0">
+              {/* Left panel — name/room fields and actions. */}
+              <div className="flex w-full flex-col gap-4 sm:w-[27%] sm:shrink-0 sm:border-r sm:border-[#5d402b]/45 sm:pr-[3%]">
+                {modalMode === "create" && (
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[13px] font-semibold uppercase tracking-[0.18em] text-red-300/70 sm:text-[14px]">
+                      Room name
+                    </span>
+                    <input
+                      type="text"
+                      value={roomName}
+                      maxLength={24}
+                      onChange={(e) => setRoomName(e.target.value)}
+                      placeholder="Name your room"
+                      aria-label="Room name"
+                      className="w-full rounded-md border border-red-900/45 bg-black/45 px-4 py-3 text-text-sm text-[#f2e7d0] shadow-inner placeholder:text-grey-600 focus:border-red-600/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                    />
+                  </label>
+                )}
+
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-300/70">
-                    Room name
+                  <span className="text-[13px] font-semibold uppercase tracking-[0.18em] text-red-300/70 sm:text-[14px]">
+                    Keeper name
                   </span>
                   <input
                     type="text"
-                    value={roomName}
-                    maxLength={24}
-                    onChange={(e) => setRoomName(e.target.value)}
-                    placeholder="Name your room"
-                    aria-label="Room name"
+                    value={name}
+                    maxLength={16}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your name"
+                    aria-label="Your name"
                     className="w-full rounded-md border border-red-900/45 bg-black/45 px-4 py-3 text-text-sm text-[#f2e7d0] shadow-inner placeholder:text-grey-600 focus:border-red-600/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                   />
                 </label>
-              )}
 
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-300/70">
-                  Keeper name
-                </span>
-                <input
-                  type="text"
-                  value={name}
-                  maxLength={16}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
-                  aria-label="Your name"
-                  className="w-full rounded-md border border-red-900/45 bg-black/45 px-4 py-3 text-text-sm text-[#f2e7d0] shadow-inner placeholder:text-grey-600 focus:border-red-600/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
-                />
-              </label>
+                {modalMode === "join" && (
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-300/70">
+                      Ancient room code
+                    </span>
+                    <input
+                      type="text"
+                      value={joinCode}
+                      maxLength={6}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      placeholder="Room code"
+                      aria-label="Room code"
+                      className="w-full rounded-md border border-red-900/45 bg-black/45 px-4 py-3 text-center font-mono text-text-md uppercase tracking-[0.3em] text-[#f2e7d0] shadow-inner placeholder:text-grey-600 placeholder:tracking-normal focus:border-red-600/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                    />
+                  </label>
+                )}
 
-              {modalMode === "join" && (
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-300/70">
-                    Ancient room code
-                  </span>
-                  <input
-                    type="text"
-                    value={joinCode}
-                    maxLength={6}
-                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    placeholder="Room code"
-                    aria-label="Room code"
-                    className="w-full rounded-md border border-red-900/45 bg-black/45 px-4 py-3 text-center font-mono text-text-md uppercase tracking-[0.3em] text-[#f2e7d0] shadow-inner placeholder:text-grey-600 placeholder:tracking-normal focus:border-red-600/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
-                  />
-                </label>
-              )}
+                {o.error && <p className="text-center text-text-sm text-red-400">{o.error}</p>}
 
-              <AvatarPicker selected={avatar} onSelect={setAvatar} />
+                <button
+                  type="button"
+                  disabled={o.busy || (modalMode === "create" ? !canCreate : !canJoinByCode)}
+                  onClick={handleConfirm}
+                  className="werewolf-create-dialog-action mt-2 w-full bg-gradient-to-b from-[#761f1b] via-[#4b100e] to-[#250706] px-5 py-3 font-serif text-text-md font-black uppercase tracking-[0.14em] text-[#dfc6a4] transition enabled:hover:scale-[1.02] enabled:hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 sm:py-4"
+                >
+                  {o.busy ? "…" : modalMode === "create" ? "Create room" : "Join room"}
+                </button>
 
-              {o.error && <p className="text-center text-text-sm text-red-400">{o.error}</p>}
+                {modalMode === "join" && o.error === "This game has already started." && (
+                  <button
+                    type="button"
+                    disabled={o.busy || !trimmedName}
+                    onClick={() => o.reclaimGame(joinCode, name)}
+                    className="w-full rounded-md border border-amber-700/50 bg-black/40 px-8 py-2.5 font-serif text-text-sm font-bold uppercase tracking-[0.12em] text-amber-300 transition enabled:hover:border-amber-500 enabled:hover:bg-amber-950/30 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                  >
+                    Reclaim your seat as {trimmedName || "…"}
+                  </button>
+                )}
+              </div>
 
-              <button
-                type="button"
-                disabled={o.busy || (modalMode === "create" ? !canCreate : !canJoinByCode)}
-                onClick={handleConfirm}
-                className="mt-1 w-full rounded-md border border-red-700/60 bg-gradient-to-b from-[#7a1f1f] via-[#4d1414] to-[#1a0808] px-8 py-3 font-serif text-text-md font-black uppercase tracking-[0.16em] text-[#f3dfb6] shadow-[inset_0_1px_0_rgba(255,180,153,0.24),0_5px_18px_rgba(0,0,0,0.4)] transition enabled:hover:scale-[1.02] enabled:hover:border-red-500 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-              >
-                {o.busy ? "…" : modalMode === "create" ? "Create room" : "Join room"}
-              </button>
+              {/* Right panel — avatar picker. */}
+              <div className="min-w-0 flex-1 sm:pl-[3%]">
+                <AvatarPicker selected={avatar} onSelect={setAvatar} />
+              </div>
             </div>
           </div>
         </div>

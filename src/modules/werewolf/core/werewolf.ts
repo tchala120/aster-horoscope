@@ -66,7 +66,7 @@ export const TOKENS: readonly string[] = [
 
 /** Character portraits a player picks from when creating or joining a room. */
 export const AVATARS: readonly string[] = Array.from(
-  { length: 10 },
+  { length: 19 },
   (_, i) => `/werewolf-game/avatar/icon_${i + 1}.png`,
 );
 
