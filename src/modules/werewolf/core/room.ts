@@ -32,6 +32,8 @@ export interface RoomPlayer {
   role: RoleId | null;
   alive: boolean;
   joinedAt: string;
+  /** Server-controlled seat that acts automatically and has no browser session. */
+  isBot?: boolean;
 }
 
 /** One line in the room's chat feed — a system notice or a player's typed message. */
@@ -135,6 +137,7 @@ export interface PublicPlayer {
   /** True for the player who created the room — safe to reveal, shown as a crown. */
   isHost: boolean;
   ready: boolean;
+  isBot?: boolean;
 }
 
 /** The seer's private result for the player they just inspected this night. */
@@ -205,4 +208,5 @@ export type WerewolfAction =
   | { type: "chat"; text: string }
   | { type: "wolf-chat"; text: string }
   | { type: "kick"; playerId: string }
+  | { type: "add-bot" }
   | { type: "update-settings"; settings: Partial<RoomSettings> };

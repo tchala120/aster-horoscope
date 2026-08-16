@@ -23,9 +23,9 @@ import {
   RolePortrait,
   TEAM_LABEL,
 } from "./components/shared";
-import { PlayerPickGrid, PlayerSeat } from "./components/PlayerSeat";
+import { PlayerPickGrid } from "./components/PlayerSeat";
 import { WerewolfLoadingScreen } from "./components/WerewolfLoadingScreen";
-import { avatarVideoFor } from "./avatar-media";
+import { AvatarMedia } from "./components/AvatarMedia";
 import { useWerewolfOnline } from "./state/use-werewolf-online";
 import { peekParticipantToken } from "./state/participant-storage";
 import { useKnownWerewolfRooms } from "./state/use-known-rooms";
@@ -90,6 +90,7 @@ function Shell({
   backdrop,
   backdropContent,
   wide,
+  extraWide,
   backHref,
   backLabel,
   hideBack,
@@ -103,6 +104,8 @@ function Shell({
   backdropContent?: React.ReactNode;
   /** Wider canvas for layouts with side panels (e.g. the lobby's campfire circle). */
   wide?: boolean;
+  /** Full-width canvas for large phase artwork such as the ten-player discussion frame. */
+  extraWide?: boolean;
   /** Where the "Back" link goes — defaults to BackLink's own default (the app home page). */
   backHref?: string;
   /** Label for the back-navigation link — defaults to BackLink's own default ("Back"). */
@@ -127,7 +130,7 @@ function Shell({
     >
       {backdropContent ?? (backdrop ? <Backdrop src={backdrop} /> : <CelestialBackground />)}
       <div
-        className={`relative z-10 mx-auto flex w-full flex-1 flex-col gap-5 p-6 ${wide ? "max-w-5xl" : "max-w-2xl"} ${backdropInteractive ? "pointer-events-none" : ""}`}
+        className={`relative z-10 mx-auto flex w-full flex-1 flex-col gap-5 p-6 ${extraWide ? "max-w-[1600px]" : wide ? "max-w-5xl" : "max-w-2xl"} ${backdropInteractive ? "pointer-events-none" : ""}`}
       >
         {!hideBack && (
           <div
@@ -351,11 +354,13 @@ function RoomInfoPanel({
   playerCount,
   isHost,
   onDelete,
+  onAddBot,
 }: {
   code: string;
   playerCount: number;
   isHost: boolean;
   onDelete: () => void;
+  onAddBot: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -387,17 +392,24 @@ function RoomInfoPanel({
         </p>
       )}
       {isHost && (
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm("Delete this room? Everyone will be removed from it.")) {
-              onDelete();
-            }
-          }}
-          className="mt-1 border-t border-amber-900/25 pt-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-red-400/75 hover:text-red-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
-        >
-          Delete room
-        </button>
+        <div className="mt-1 flex flex-col gap-2 border-t border-amber-900/25 pt-2.5">
+          {playerCount < MAX_PLAYERS && (
+            <button
+              type="button"
+              onClick={onAddBot}
+              className="text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-300/80 hover:text-amber-200 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+            >
+              + Add bot
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onDelete}
+            className="text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-red-400/75 hover:text-red-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+          >
+            Delete room
+          </button>
+        </div>
       )}
     </div>
   );
@@ -495,11 +507,11 @@ const ROLE_ORDER: RoleId[] = ["werewolf", "villager", "seer", "doctor", "hunter"
 
 /** Transparent-bg portraits for the role-distribution panel — shown frameless so they stand on their own. */
 const FRAMELESS_ROLE_PORTRAITS: Partial<Record<RoleId, string>> = {
-  werewolf: "/werewolf-game/system/werewolf-role-removebg.png",
-  hunter: "/werewolf-game/system/hunter_role-removebg.png",
-  seer: "/werewolf-game/system/seer_role-removebg.png",
-  villager: "/werewolf-game/system/villeger.png",
-  doctor: "/werewolf-game/system/doctor.png",
+  werewolf: "/werewolf-game/system/wolf-role.png",
+  hunter: "/werewolf-game/system/hunter-role.png",
+  seer: "/werewolf-game/system/seer-role.png",
+  villager: "/werewolf-game/system/villger-role.png",
+  doctor: "/werewolf-game/system/doctor-role.png",
 };
 
 /** Top-right panel: previews the role pool for the current headcount, before roles are dealt. */
@@ -557,6 +569,11 @@ const SEAT_POSITIONS: { x: number; y: number }[] = [
   { x: 29, y: 43 }, // back-left, hooded
   { x: 18, y: 57 }, // left-middle
   { x: 25, y: 75 }, // front-left, bearded
+  { x: 36, y: 70 }, // player 11 / Bot 10
+  { x: 74, y: 74 }, // player 12 / Bot 11, immediately right of Bot 1
+  { x: 36, y: 57 }, // player 13, above player 11
+  { x: 66, y: 61 }, // player 14 / Bot 13, directly above Bot 1
+  { x: 50, y: 55 }, // inner-center
 ];
 
 /**
@@ -625,17 +642,8 @@ function CampfireCircle({
                       : "0 2px 10px rgba(0,0,0,0.8)",
                   }}
                 >
-                  {avatarVideoFor(p.avatar) ? (
-                    <video
-                      src={avatarVideoFor(p.avatar)}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      className="absolute inset-0 h-full w-full object-cover object-top"
-                    />
-                  ) : p.avatar ? (
-                    <Image src={p.avatar} alt="" fill sizes="60px" className="object-cover object-top" />
+                  {p.avatar ? (
+                    <AvatarMedia avatar={p.avatar} sizes="60px" />
                   ) : (
                     <span
                       className="flex h-full w-full items-center justify-center text-text-md font-bold text-grey-950"
@@ -648,11 +656,7 @@ function CampfireCircle({
                 {isHost && !p.isYou && !p.isHost && (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm(`Remove ${p.name} from the room?`)) {
-                        onKick(p.id);
-                      }
-                    }}
+                    onClick={() => onKick(p.id)}
                     aria-label={`Remove ${p.name}`}
                     className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full border border-red-900/60 bg-grey-950 text-[9px] font-bold leading-none text-red-400 shadow-md transition-colors hover:border-red-500 hover:bg-red-950 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
                   >
@@ -773,6 +777,7 @@ function LobbyScreen({
   onReady,
   onUpdateSettings,
   onKick,
+  onAddBot,
 }: {
   view: PublicRoom;
   onStart: () => void;
@@ -782,11 +787,23 @@ function LobbyScreen({
   onReady: (ready: boolean) => void;
   onUpdateSettings: (patch: Partial<RoomSettings>) => void;
   onKick: (playerId: string) => void;
+  onAddBot: () => void;
 }) {
   const me = view.players.find((p) => p.isYou);
   const allReady = view.players.length >= MIN_PLAYERS && view.players.every((p) => p.ready);
   const isCountingDown = view.phase === "countdown" && Boolean(view.countdownEndsAt);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<
+    | { type: "delete" }
+    | {
+        type: "kick";
+        playerId: string;
+        playerName: string;
+        playerAvatar: string;
+        playerColor: string;
+      }
+    | null
+  >(null);
   return (
     <Shell
       wide
@@ -794,7 +811,22 @@ function LobbyScreen({
       stackLeft
       backdropInteractive
       backdropContent={
-        <CampfireCircle players={view.players} isHost={view.isHost} onKick={onKick} />
+        <CampfireCircle
+          players={view.players}
+          isHost={view.isHost}
+          onKick={(playerId) => {
+            const player = view.players.find((candidate) => candidate.id === playerId);
+            if (player) {
+              setPendingConfirm({
+                type: "kick",
+                playerId,
+                playerName: player.name,
+                playerAvatar: player.avatar,
+                playerColor: player.color,
+              });
+            }
+          }}
+        />
       }
     >
       <button
@@ -873,9 +905,9 @@ function LobbyScreen({
             code={view.code}
             playerCount={view.players.length}
             isHost={view.isHost}
-            onDelete={onDelete}
+            onDelete={() => setPendingConfirm({ type: "delete" })}
+            onAddBot={onAddBot}
           />
-          <GameLogPanel entries={view.gameLog} />
           <div className="werewolf-ancient-panel grid grid-cols-2 gap-2 p-3">
             <p className="werewolf-ancient-heading col-span-2 mb-1">Village Circle</p>
             {view.players.map((player) => (
@@ -887,13 +919,7 @@ function LobbyScreen({
                   className={`relative h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 ${player.ready ? "border-amber-300" : "border-red-800"}`}
                 >
                   {player.avatar ? (
-                    <Image
-                      src={player.avatar}
-                      alt=""
-                      fill
-                      sizes="36px"
-                      className="object-cover object-top"
-                    />
+                    <AvatarMedia avatar={player.avatar} sizes="36px" />
                   ) : (
                     <span
                       className="flex h-full items-center justify-center text-xs font-bold"
@@ -906,6 +932,7 @@ function LobbyScreen({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-serif text-[11px] font-semibold text-[#dfcfaf]">
                     {player.name}
+                    {player.isBot ? " · Bot" : ""}
                     {player.isHost ? " · Host" : ""}
                   </span>
                   <span
@@ -939,7 +966,6 @@ function LobbyScreen({
           aria-pressed={Boolean(me?.ready)}
           className="group relative h-20 w-64 transition-transform enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
         >
-          <span className="absolute inset-x-7 bottom-1 top-3 -z-10 rounded-sm border border-amber-900/45 bg-black/55 shadow-[0_8px_24px_rgba(0,0,0,0.6)] transition group-enabled:group-hover:border-amber-600/70" />
           <Image
             src={
               me?.ready
@@ -963,6 +989,103 @@ function LobbyScreen({
         >
           Leave room
         </button>
+      )}
+
+      {pendingConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lobby-confirm-title"
+          className="pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={() => setPendingConfirm(null)}
+        >
+          <div
+            className="relative w-full max-w-md overflow-hidden rounded-[20px] border-2 border-amber-500/75 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,0.18),transparent_35%),radial-gradient(circle_at_50%_100%,rgba(185,28,28,0.3),transparent_46%),linear-gradient(145deg,#100b08,#030304_58%,#180405)] px-8 py-8 text-center shadow-[inset_0_0_0_2px_#080202,inset_0_0_0_4px_rgba(153,27,27,0.28),0_24px_70px_rgba(0,0,0,0.85)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className="pointer-events-none absolute inset-3 rounded-[13px] border border-red-900/65" />
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-400">
+              Leave the circle?
+            </p>
+            <h2
+              id="lobby-confirm-title"
+              className="mt-2 font-serif text-xl font-black text-[#f0ddb7]"
+            >
+              {pendingConfirm.type === "delete"
+                ? "Delete this room?"
+                : `Remove ${pendingConfirm.playerName}?`}
+            </h2>
+            {pendingConfirm.type === "kick" && (
+              <div className="relative mx-auto mt-4 h-24 w-24 overflow-hidden rounded-full border-2 border-red-500/80 bg-grey-950 shadow-[0_0_0_2px_#160505,0_0_20px_rgba(220,38,38,0.5)]">
+                {pendingConfirm.playerAvatar ? (
+                  <AvatarMedia
+                    avatar={pendingConfirm.playerAvatar}
+                    sizes="96px"
+                    className="object-cover object-top"
+                    alt={pendingConfirm.playerName}
+                  />
+                ) : (
+                  <span
+                    className="flex h-full w-full items-center justify-center text-3xl font-black text-grey-950"
+                    style={{ backgroundColor: pendingConfirm.playerColor }}
+                  >
+                    {pendingConfirm.playerName.slice(0, 1).toUpperCase() || "?"}
+                  </span>
+                )}
+              </div>
+            )}
+            <p className="mx-auto mt-2 max-w-sm text-sm text-grey-400">
+              {pendingConfirm.type === "delete"
+                ? "Everyone will be removed and this gathering cannot be resumed."
+                : "They will be removed from the campfire lobby."}
+            </p>
+            <div className="relative z-10 mt-6 flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingConfirm(null)}
+                aria-label="Stay"
+                className="relative aspect-[3/1] w-44 transition hover:scale-105 hover:brightness-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+              >
+                <Image
+                  src="/werewolf-game/system/stay-button.png"
+                  alt="Stay"
+                  fill
+                  sizes="176px"
+                  className="object-contain"
+                />
+              </button>
+              <button
+                type="button"
+                aria-label={pendingConfirm.type === "delete" ? "Delete room" : "Remove player"}
+                onClick={() => {
+                  const action = pendingConfirm;
+                  setPendingConfirm(null);
+                  if (action.type === "delete") onDelete();
+                  else onKick(action.playerId);
+                }}
+                className="relative aspect-[3/1] w-44 transition hover:scale-105 hover:brightness-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+              >
+                {pendingConfirm.type === "delete" ? (
+                  <Image
+                    src="/werewolf-game/system/delete-room-button.png"
+                    alt="Delete room"
+                    fill
+                    sizes="176px"
+                    className="object-contain"
+                  />
+                ) : (
+                  <Image
+                    src="/werewolf-game/system/remove-button.png"
+                    alt="Remove"
+                    fill
+                    sizes="176px"
+                    className="object-contain"
+                  />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {settingsOpen && (
@@ -1028,7 +1151,7 @@ function VoteDetailsList({
 
 function WaitingCard({ text }: { text: string }) {
   return (
-    <div className="werewolf-game-stage werewolf-game-stage--night mx-auto flex w-full max-w-sm flex-col items-center gap-4 px-7 py-9 text-center">
+    <div className="relative isolate mx-auto flex w-full max-w-[650px] flex-col items-center gap-4 overflow-hidden rounded-[24px] border-2 border-amber-500/80 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,0.22),transparent_34%),radial-gradient(circle_at_50%_100%,rgba(185,28,28,0.28),transparent_42%),linear-gradient(145deg,rgba(12,10,8,0.99),rgba(2,2,3,0.99)_55%,rgba(20,3,4,0.99))] px-7 py-9 text-center shadow-[inset_0_0_0_2px_#090302,inset_0_0_0_4px_rgba(245,158,11,0.22),inset_0_-24px_45px_rgba(127,29,29,0.2),0_0_28px_rgba(245,158,11,0.16),0_24px_45px_rgba(0,0,0,0.8)]">
       <Image
         src="/werewolf-game/icon-moon.png"
         alt=""
@@ -1060,7 +1183,7 @@ function RoleBadge({ role, avatar, alive }: { role: RoleId; avatar?: string; ali
           <Image src={labelSrc} alt="" fill sizes="220px" className="object-cover" />
           {avatar && role !== "werewolf" && (
             <span className="absolute left-[9%] top-[40%] aspect-square h-[68%] -translate-y-1/2 overflow-hidden rounded-full">
-              <Image src={avatar} alt="" fill sizes="60px" className="object-cover object-top" />
+              <AvatarMedia avatar={avatar} sizes="60px" />
             </span>
           )}
         </div>
@@ -1104,7 +1227,7 @@ function ConfirmPickPanel({
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   return (
-    <div className="werewolf-game-stage werewolf-game-stage--night mx-auto flex w-full max-w-sm flex-col gap-4 px-6 py-7">
+    <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-4 rounded-[24px] border-2 border-amber-500/80 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,0.22),transparent_34%),radial-gradient(circle_at_50%_100%,rgba(185,28,28,0.28),transparent_42%),linear-gradient(145deg,rgba(12,10,8,0.99),rgba(2,2,3,0.99)_55%,rgba(20,3,4,0.99))] px-[6%] py-10 shadow-[inset_0_0_0_2px_#090302,inset_0_0_0_4px_rgba(245,158,11,0.22),inset_0_-24px_45px_rgba(127,29,29,0.2),0_0_28px_rgba(245,158,11,0.16),0_24px_45px_rgba(0,0,0,0.8)]">
       <div className="text-center">
         <p className={`werewolf-stage-kicker ${kickerClassName}`}>{kicker}</p>
         <h2 className="werewolf-stage-title mt-1">{title}</h2>
@@ -1129,96 +1252,14 @@ function WolfHuntPanel({
   const [selected, setSelected] = useState<string | null>(null);
   return (
     <>
-      <div className="werewolf-game-stage werewolf-game-stage--danger mx-auto flex w-full max-w-2xl flex-col gap-5 px-6 py-7">
+      <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-5 rounded-[24px] border-2 border-amber-500/80 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,0.22),transparent_34%),radial-gradient(circle_at_50%_100%,rgba(185,28,28,0.28),transparent_42%),linear-gradient(145deg,rgba(12,10,8,0.99),rgba(2,2,3,0.99)_55%,rgba(20,3,4,0.99))] px-[6%] py-10 shadow-[inset_0_0_0_2px_#090302,inset_0_0_0_4px_rgba(245,158,11,0.22),inset_0_-24px_45px_rgba(127,29,29,0.2),0_0_28px_rgba(245,158,11,0.16),0_24px_45px_rgba(0,0,0,0.8)]">
         <div className="text-center">
           <p className="werewolf-stage-kicker text-red-300">Night {nightNumber} &middot; Wolves</p>
 
           <h2 className="werewolf-stage-title mt-1">Choose tonight&apos;s victim</h2>
         </div>
 
-        {/* Victim List */}
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-6">
-          {targets.map((p) => {
-            const isSelected = selected === p.id;
-
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setSelected(p.id)}
-                aria-pressed={isSelected}
-                className={`
-                group
-                flex w-[100px] shrink-0
-                flex-col items-center gap-1
-                rounded-lg p-1
-                transition
-
-                focus:outline-none
-                focus-visible:ring-2
-                focus-visible:ring-red-400
-
-                ${isSelected ? "opacity-100" : "opacity-80 hover:opacity-100"}
-              `}
-              >
-                <div className="relative aspect-[3/4] w-full">
-                  <span className="absolute inset-[2%] overflow-visible bg-transparent">
-                    <Image
-                      src={p.avatar}
-                      alt={p.name}
-                      fill
-                      sizes="200px"
-                      className={`
-                      bg-transparent
-                      object-contain
-                      transition-[filter]
-                      duration-300
-
-                      group-hover:drop-shadow-[0_0_8px_rgba(255,0,0,1)]
-                      group-hover:drop-shadow-[0_0_18px_rgba(255,0,0,0.9)]
-
-                      ${
-                        isSelected
-                          ? `
-                            drop-shadow-[0_0_8px_rgba(255,0,0,1)]
-                            drop-shadow-[0_0_18px_rgba(255,0,0,0.9)]
-                          `
-                          : ""
-                      }
-                    `}
-                    />
-                  </span>
-                  {p.role === "werewolf" && (
-                    <span
-                      className="absolute -right-1 -top-1 h-6 w-6 overflow-hidden rounded-full border border-red-900/60 bg-grey-950"
-                      title="Fellow werewolf"
-                    >
-                      <Image
-                        src="/werewolf-game/system/wolf-icon.png"
-                        alt="Fellow werewolf"
-                        fill
-                        sizes="24px"
-                        className="object-cover"
-                      />
-                    </span>
-                  )}
-                </div>
-
-                <span
-                  className={`
-                  w-full truncate text-center
-                  text-[11px] font-semibold
-                  transition-colors duration-300
-
-                  ${isSelected ? "text-red-300" : "text-[#ead9b6] group-hover:text-red-300"}
-                `}
-                >
-                  {p.name}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <PlayerPickGrid players={targets} onPick={setSelected} selectedId={selected} />
       </div>
 
       {/* Confirm Hunt */}
@@ -1297,6 +1338,7 @@ export function WerewolfOnline({ code }: { code?: string }) {
   const reduced = useReducedMotion() ?? false;
   const o = useWerewolfOnline(code);
   const router = useRouter();
+  const [detailsForResult, setDetailsForResult] = useState<string | null>(null);
   const phaseTimer = usePhaseTimer(o.view?.phaseStartedAt ?? null, phaseCooldownFor(o.view));
 
   // A direct link to a room (/werewolf/online/[code]) with no saved session for it — send the
@@ -1341,6 +1383,7 @@ export function WerewolfOnline({ code }: { code?: string }) {
         onReady={o.setReady}
         onUpdateSettings={o.updateSettings}
         onKick={o.kickPlayer}
+        onAddBot={o.addBot}
       />
     );
   }
@@ -1349,6 +1392,9 @@ export function WerewolfOnline({ code }: { code?: string }) {
   const wolvesRemaining = view.wolvesRemaining;
   const isNight = NIGHT_PHASES.includes(view.phase);
   const you = view.you;
+  const currentResultKey =
+    view.phase === "over" ? (view.phaseStartedAt ?? `${view.winner}-${view.nightNumber}`) : null;
+  const showingResultReveal = currentResultKey !== null && detailsForResult !== currentResultKey;
 
   function renderStage(): React.ReactNode {
     switch (view.phase) {
@@ -1379,7 +1425,7 @@ export function WerewolfOnline({ code }: { code?: string }) {
           if (view.seerVision) {
             const v = view.seerVision;
             return (
-              <div className="werewolf-game-stage werewolf-game-stage--night mx-auto flex w-full max-w-sm flex-col items-center gap-4 px-6 py-8 text-center">
+              <div className="relative isolate mx-auto flex w-full max-w-[650px] flex-col items-center gap-4 overflow-hidden rounded-[24px] border-2 border-amber-500/80 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,0.22),transparent_34%),radial-gradient(circle_at_50%_100%,rgba(185,28,28,0.28),transparent_42%),linear-gradient(145deg,rgba(12,10,8,0.99),rgba(2,2,3,0.99)_55%,rgba(20,3,4,0.99))] px-6 py-8 text-center shadow-[inset_0_0_0_2px_#090302,inset_0_0_0_4px_rgba(245,158,11,0.22),inset_0_-24px_45px_rgba(127,29,29,0.2),0_0_28px_rgba(245,158,11,0.16),0_24px_45px_rgba(0,0,0,0.8)]">
                 <p className="werewolf-stage-kicker text-violet-300">Vision</p>
                 <RolePortrait role={ROLES.seer} size={80} />
                 <p className="text-text-md text-grey-100">
@@ -1457,10 +1503,7 @@ export function WerewolfOnline({ code }: { code?: string }) {
           <AnnouncementPanel
             title={`Night ${view.nightNumber}`}
             message={view.message}
-            deadRole={(() => {
-              const r = view.players.find((p) => p.id === view.lastNightKilledId)?.role;
-              return r ? ROLES[r] : undefined;
-            })()}
+            revealedPlayer={view.players.find((p) => p.id === view.lastNightKilledId)}
             onContinue={o.continueDawn}
             continueLabel="Gather the village"
           />
@@ -1470,7 +1513,6 @@ export function WerewolfOnline({ code }: { code?: string }) {
         if (you?.id === view.hunterRevengeFor) {
           return (
             <div className="flex flex-col items-center gap-3">
-              <RolePortrait role={ROLES.hunter} size={72} />
               <ConfirmPickPanel
                 kicker="Your final shot"
                 kickerClassName="text-orange-300"
@@ -1485,29 +1527,101 @@ export function WerewolfOnline({ code }: { code?: string }) {
         return <WaitingCard text="The Hunter takes aim with their final shot…" />;
       }
 
-      case "day-discuss":
+      case "day-discuss": {
         return (
-          <div className="werewolf-game-stage werewolf-game-stage--day mx-auto flex w-full max-w-sm flex-col gap-4 px-6 py-7">
-            <div className="text-center">
-              <p className="werewolf-stage-kicker text-amber-300">Day</p>
-              <h2 className="werewolf-stage-title mt-1">Discuss who the wolves might be</h2>
-              <p className="mt-1 text-text-sm text-grey-400">Talk it over, then move to a vote.</p>
-              <PhaseTimerNote seconds={phaseTimer} />
+          <div className="mx-auto flex w-full max-w-[1000px] flex-col items-center justify-center gap-4">
+            <div className="relative isolate flex w-full min-w-0 max-w-[1000px] flex-col items-center overflow-hidden rounded-[24px] border-2 border-[#8b633c] bg-[radial-gradient(circle_at_50%_0%,rgba(105,70,35,0.28),transparent_38%),linear-gradient(145deg,rgba(38,27,18,0.98),rgba(12,10,8,0.99)_58%,rgba(29,18,12,0.98))] px-[5%] py-10 text-center shadow-[inset_0_0_0_2px_#160e09,inset_0_0_0_4px_rgba(190,132,70,0.24),inset_0_0_50px_rgba(0,0,0,0.8),0_24px_45px_rgba(0,0,0,0.75)] sm:px-[6%] sm:py-12">
+              <span className="pointer-events-none absolute inset-3 -z-10 rounded-[16px] border border-[#76502f]/70" />
+              <span className="pointer-events-none absolute inset-x-[8%] top-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+              <span className="pointer-events-none absolute inset-x-[8%] bottom-0 h-px bg-gradient-to-r from-transparent via-red-800/60 to-transparent" />
+
+              <div className="flex items-center justify-center gap-2 font-serif text-[11px] font-black uppercase tracking-[0.18em] text-amber-300 sm:text-sm">
+                <span className="h-px w-8 bg-gradient-to-r from-transparent to-amber-600/70" />
+                Day {view.nightNumber}
+                <span className="h-px w-8 bg-gradient-to-l from-transparent to-amber-600/70" />
+              </div>
+              <h2 className="mt-1 font-serif text-[15px] font-black uppercase tracking-[0.05em] text-[#ead9b6] drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)] sm:text-xl">
+                Discuss who the wolves might be
+              </h2>
+              <p className="mt-0.5 text-[9px] text-grey-400 sm:text-xs">
+                Talk it over before the village votes.
+              </p>
+
+              <div className="relative mt-2 flex h-14 w-14 items-center justify-center rounded-full border border-amber-500/70 bg-[#130d08]/95 font-serif text-sm font-black text-amber-300 shadow-[inset_0_0_0_3px_#080706,0_0_0_2px_#68431e,0_0_15px_rgba(218,142,38,0.25)] sm:h-16 sm:w-16 sm:text-lg">
+                <span className="absolute -inset-2 -z-10 rounded-full border border-amber-900/60" />
+                {phaseTimer === null ? "∞" : formatTimer(Math.max(phaseTimer, 0))}
+              </div>
+
+              <div className="mt-3 flex w-full max-w-[867px] flex-wrap justify-center gap-1 px-0.5 pb-1 sm:gap-2">
+                {alive.map((p) => (
+                  <div
+                    key={p.id}
+                    className="relative flex aspect-[1082/1454] w-[117px] max-w-[calc(20%-0.4rem)] min-w-0 flex-col items-center justify-center bg-black/40 px-[12%] py-[13%] shadow-[0_4px_12px_rgba(0,0,0,0.45)] sm:max-w-[117px]"
+                  >
+                    <Image
+                      src="/werewolf-game/system/select-avatar-frame.png"
+                      alt=""
+                      fill
+                      sizes="120px"
+                      className="pointer-events-none z-10 object-fill"
+                    />
+                    <div className="absolute left-1/2 top-[17%] z-30 aspect-square w-[56%] -translate-x-1/2 overflow-hidden rounded-full border border-amber-500/80 bg-grey-950 shadow-[0_0_0_2px_#0a0806,0_0_12px_rgba(180,72,28,0.45)]">
+                      {p.avatar ? (
+                        <AvatarMedia
+                          avatar={p.avatar}
+                          sizes="72px"
+                          className="z-30 object-cover object-top"
+                        />
+                      ) : (
+                        <span
+                          className="flex h-full w-full items-center justify-center font-bold text-grey-950"
+                          style={{ backgroundColor: p.color }}
+                        >
+                          {p.name.slice(0, 1).toUpperCase() || "?"}
+                        </span>
+                      )}
+                    </div>
+                    <p className="absolute bottom-[19%] left-1/2 z-30 w-[72%] -translate-x-1/2 truncate font-serif text-[9px] font-bold text-[#ead9b6] sm:text-[11px]">
+                      {p.name}
+                    </p>
+                    <span className="absolute bottom-[13%] left-1/2 z-30 block h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]" />
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 h-px w-full bg-gradient-to-r from-transparent via-[#95612f]/80 to-transparent" />
+              <button
+                type="button"
+                onClick={o.continueDiscuss}
+                aria-label="Proceed to vote"
+                className="relative mt-3 aspect-[3/1] w-56 transition hover:scale-105 hover:brightness-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+              >
+                <Image
+                  src="/werewolf-game/system/proceed-to-vote-button.png"
+                  alt="Proceed to vote"
+                  fill
+                  sizes="224px"
+                  className="object-contain"
+                />
+              </button>
+              <p className="mt-1.5 text-[9px] text-[#b39a74] sm:text-[10px]">Continue discussing</p>
             </div>
-            <div className="flex flex-wrap justify-center gap-2">
-              {alive.map((p) => (
-                <PlayerSeat key={p.id} player={p} />
-              ))}
-            </div>
-            <PrimaryButton onClick={o.continueDiscuss}>Proceed to vote</PrimaryButton>
+
+            <aside
+              className="w-full max-w-sm shrink-0 lg:fixed lg:right-6 lg:top-1/2 lg:z-20 lg:w-[250px] lg:-translate-y-1/2"
+              aria-label="Village chat"
+            >
+              <ChatPanel entries={view.chat} onSend={o.sendChat} title="Village Chat" />
+            </aside>
           </div>
         );
+      }
 
       case "day-vote": {
         if (you?.alive && !view.youHaveVoted) {
           const targets = alive.filter((p) => p.id !== you.id);
           return (
-            <div className="werewolf-game-stage werewolf-game-stage--day mx-auto flex w-full max-w-sm flex-col gap-4 px-6 py-7">
+            <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-4 rounded-[24px] border-2 border-[#8b633c] bg-[radial-gradient(circle_at_50%_0%,rgba(105,70,35,0.28),transparent_38%),linear-gradient(145deg,rgba(38,27,18,0.98),rgba(12,10,8,0.99)_58%,rgba(29,18,12,0.98))] px-[6%] py-10 shadow-[inset_0_0_0_2px_#160e09,inset_0_0_0_4px_rgba(190,132,70,0.24),inset_0_0_50px_rgba(0,0,0,0.8),0_24px_45px_rgba(0,0,0,0.75)]">
               <div className="text-center">
                 <p className="werewolf-stage-kicker text-amber-300">
                   {view.votesIn} of {view.votesNeeded} voted
@@ -1546,14 +1660,65 @@ export function WerewolfOnline({ code }: { code?: string }) {
               <h2 className="werewolf-stage-title mt-1">
                 Cast out {candidate?.name ?? "the accused"}?
               </h2>
-              <div className="mt-2 flex justify-center gap-3">
-                <PrimaryButton onClick={() => o.castRunoffVote(true)}>Yes, cast out</PrimaryButton>
+              {candidate && (
+                <div className="relative aspect-[1082/1454] w-[160px] bg-black/40 shadow-[0_4px_14px_rgba(0,0,0,0.55)]">
+                  <Image
+                    src="/werewolf-game/system/select-avatar-frame.png"
+                    alt=""
+                    fill
+                    sizes="160px"
+                    className="pointer-events-none z-10 object-fill"
+                  />
+                  <div className="absolute left-1/2 top-[15%] z-20 aspect-square w-[64%] -translate-x-1/2 overflow-hidden rounded-full border border-red-400/90 bg-grey-950 shadow-[0_0_0_2px_#0a0806,0_0_16px_rgba(239,68,68,0.65)]">
+                    {candidate.avatar ? (
+                      <AvatarMedia
+                        avatar={candidate.avatar}
+                        sizes="104px"
+                        className="object-cover object-top"
+                        alt={candidate.name}
+                      />
+                    ) : (
+                      <span
+                        className="flex h-full w-full items-center justify-center font-bold text-grey-950"
+                        style={{ backgroundColor: candidate.color }}
+                      >
+                        {candidate.name.slice(0, 1).toUpperCase() || "?"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="absolute bottom-[18%] left-1/2 z-20 w-[72%] -translate-x-1/2 truncate font-serif text-[10px] font-bold text-[#ead9b6]">
+                    {candidate.name}
+                  </p>
+                </div>
+              )}
+              <div className="mt-6 flex w-full justify-center gap-3 px-4">
+                <button
+                  type="button"
+                  onClick={() => o.castRunoffVote(true)}
+                  aria-label="Yes, cast out"
+                  className="relative aspect-[3/1] w-[46%] max-w-52 transition hover:scale-105 hover:brightness-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                >
+                  <Image
+                    src="/werewolf-game/system/yes-cast-out-button.png"
+                    alt="Yes, cast out"
+                    fill
+                    sizes="208px"
+                    className="object-contain"
+                  />
+                </button>
                 <button
                   type="button"
                   onClick={() => o.castRunoffVote(false)}
-                  className="rounded-sm border border-amber-900/50 bg-black/35 px-7 py-3 font-serif text-text-md font-semibold text-[#dfcfaf] transition-colors hover:border-amber-600/70 hover:bg-amber-950/20 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                  aria-label="No, spare them"
+                  className="relative aspect-[3/1] w-[46%] max-w-52 transition hover:scale-105 hover:brightness-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
                 >
-                  No, spare them
+                  <Image
+                    src="/werewolf-game/system/no-spare-button.png"
+                    alt="No, spare them"
+                    fill
+                    sizes="208px"
+                    className="object-contain"
+                  />
                 </button>
               </div>
             </div>
@@ -1575,46 +1740,217 @@ export function WerewolfOnline({ code }: { code?: string }) {
           <AnnouncementPanel
             title="The village has spoken"
             message={view.message}
-            deadRole={(() => {
-              const r = view.players.find((p) => p.id === view.dayEliminatedId)?.role;
-              return r ? ROLES[r] : undefined;
-            })()}
+            revealedPlayer={view.players.find((p) => p.id === view.dayEliminatedId)}
             onContinue={o.continueDayResult}
           />
         );
 
-      case "over":
+      case "over": {
+        const resultKey = view.phaseStartedAt ?? `${view.winner}-${view.nightNumber}`;
+        const showGameDetails = detailsForResult === resultKey;
+        const hunterName = view.players.find((player) => player.role === "hunter")?.name;
+        const deathDetailFor = (player: PublicPlayer): string | null => {
+          let roundNumber: number | null = null;
+          for (const entry of view.gameLog) {
+            const roundMatch = entry.label.match(/(?:Night|Day)\s+(\d+)/i);
+            if (roundMatch) roundNumber = Number(roundMatch[1]);
+            if (!entry.text.includes(player.name)) continue;
+
+            if (entry.text.includes("was found dead")) {
+              return `Killed by the Werewolves${roundNumber ? ` · Night ${roundNumber}` : ""}`;
+            }
+            if (entry.text.includes("village casts out")) {
+              return `Cast out by the Village${roundNumber ? ` · Day ${roundNumber}` : ""}`;
+            }
+            if (entry.text.includes("Hunter's last shot fells")) {
+              return `${hunterName ? `Killed by ${hunterName}` : "Killed by the Hunter"}${
+                roundNumber ? ` · ${entry.phase === "night" ? "Night" : "Day"} ${roundNumber}` : ""
+              }`;
+            }
+          }
+          return player.alive ? null : "Eliminated earlier";
+        };
+
+        if (!showGameDetails) {
+          const werewolvesWon = view.winner === "werewolf";
+          const winnerLabel = werewolvesWon ? "The Werewolves Prevail" : "The Village Survives";
+          return (
+            <div className="relative isolate flex h-full min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-black shadow-[inset_0_0_120px_rgba(0,0,0,0.95)]">
+              <motion.div
+                aria-hidden
+                initial={reduced ? false : { opacity: 0, scale: 0.2 }}
+                animate={{ opacity: [0, 0.75, 0.3], scale: [0.2, 1.1, 1.45] }}
+                transition={{ duration: 2.2, ease: "easeOut" }}
+                className={`absolute aspect-square w-[75%] rounded-full blur-3xl ${werewolvesWon ? "bg-red-700/35" : "bg-amber-400/25"}`}
+              />
+
+              <motion.div
+                initial={reduced ? false : { opacity: 0 }}
+                animate={{ opacity: [0, 1, 0] }}
+                transition={{ duration: reduced ? 0 : 1.35, times: [0, 0.45, 1] }}
+                className="absolute z-20 font-serif text-lg font-black uppercase tracking-[0.35em] text-[#ead9b6] drop-shadow-[0_0_18px_rgba(245,158,11,0.8)] sm:text-3xl"
+              >
+                The final fate is sealed
+              </motion.div>
+
+              <motion.div
+                initial={reduced ? false : { opacity: 0, scale: 1.12, filter: "blur(12px)" }}
+                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                transition={{ delay: reduced ? 0 : 1.15, duration: 1.2, ease: "easeOut" }}
+                className="absolute inset-0"
+              >
+                <Image
+                  src={
+                    werewolvesWon
+                      ? "/werewolf-game/system/game-over-werewolf.png"
+                      : "/werewolf-game/system/game-over-villager.png"
+                  }
+                  alt={winnerLabel}
+                  fill
+                  priority
+                  sizes="(max-width: 1200px) 100vw, 1180px"
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/25" />
+              </motion.div>
+
+              <motion.div
+                initial={reduced ? false : { opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: reduced ? 0 : 2.15, duration: 0.65 }}
+                className="relative z-30 mt-auto flex flex-col items-center gap-3 px-4 pb-8 pt-72 sm:pb-10 sm:pt-96"
+              >
+                <p className="font-serif text-xl font-black uppercase tracking-[0.12em] text-[#f1dfbd] drop-shadow-[0_3px_8px_#000] sm:text-3xl">
+                  {winnerLabel}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDetailsForResult(resultKey)}
+                  className={`rounded-md border-2 px-8 py-3 font-serif text-sm font-black uppercase tracking-[0.15em] text-[#f7ead0] shadow-[inset_0_0_0_2px_#160b08,0_0_22px_rgba(0,0,0,0.75)] transition hover:scale-105 hover:brightness-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:text-base ${
+                    werewolvesWon
+                      ? "border-red-500/90 bg-gradient-to-b from-[#8d251d] to-[#2a0808]"
+                      : "border-amber-400/90 bg-gradient-to-b from-[#8a6426] to-[#2c1707]"
+                  }`}
+                >
+                  See Game Details
+                </button>
+              </motion.div>
+            </div>
+          );
+        }
+
         return (
-          <div className="werewolf-game-stage werewolf-game-stage--result mx-auto flex w-full max-w-md flex-col items-center gap-5 px-8 py-8 text-center">
+          <div className="relative isolate mx-auto flex w-full max-w-[1000px] flex-col items-center gap-3 overflow-hidden rounded-[24px] border-2 border-amber-500/80 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,0.22),transparent_34%),radial-gradient(circle_at_50%_100%,rgba(185,28,28,0.28),transparent_42%),linear-gradient(145deg,rgba(12,10,8,0.99),rgba(2,2,3,0.99)_55%,rgba(20,3,4,0.99))] px-[4%] py-6 text-center shadow-[inset_0_0_0_2px_#090302,inset_0_0_0_4px_rgba(245,158,11,0.22),inset_0_-24px_45px_rgba(127,29,29,0.2),0_0_28px_rgba(245,158,11,0.16),0_24px_45px_rgba(0,0,0,0.8)] sm:py-8">
+            <span className="pointer-events-none absolute inset-3 -z-10 rounded-[16px] border border-red-800/60" />
+            <span className="pointer-events-none absolute inset-x-[8%] top-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+            <span className="pointer-events-none absolute inset-x-[8%] bottom-0 h-px bg-gradient-to-r from-transparent via-red-800/60 to-transparent" />
             <p className="werewolf-stage-kicker text-amber-300">Game over</p>
             <h2 className="font-serif text-heading-lg font-black text-[#ead9b6]">
               {view.winner ? TEAM_LABEL[view.winner] : ""} win{view.winner === "village" ? "s" : ""}
               !
             </h2>
-            <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3">
-              {view.players.map((p) => (
-                <div
-                  key={p.id}
-                  className={`flex flex-col items-center gap-1 rounded-sm border p-2 ${
-                    p.alive
-                      ? "border-amber-900/45 bg-black/40"
-                      : "border-grey-800/50 bg-black/20 opacity-55"
-                  }`}
-                >
-                  {p.role && <RolePortrait role={ROLES[p.role]} size={56} />}
-                  <p className="truncate text-[11px] font-semibold text-grey-200">{p.name}</p>
-                </div>
-              ))}
+            <div className="grid w-full max-w-[760px] grid-cols-2 gap-1 sm:grid-cols-5">
+              {view.players.map((p) => {
+                const isWinner = Boolean(
+                  view.winner && p.role && ROLES[p.role].team === view.winner,
+                );
+                const deathDetail = deathDetailFor(p);
+                return (
+                  <div
+                    key={p.id}
+                    className={`relative flex flex-col items-center gap-0.5 rounded-xl p-2 transition ${
+                      isWinner
+                        ? view.winner === "werewolf"
+                          ? "werewolf-winner-celebrate werewolf-winner-celebrate--wolf border-2 border-red-600/90 bg-red-950/20 shadow-[inset_0_0_0_2px_#210706,0_0_20px_rgba(220,38,38,0.55)]"
+                          : "werewolf-winner-celebrate werewolf-winner-celebrate--village border-2 border-amber-400/90 bg-amber-950/20 shadow-[inset_0_0_0_2px_#241707,0_0_20px_rgba(251,191,36,0.5)]"
+                        : "border-2 border-transparent"
+                    } ${p.alive || isWinner ? "" : "opacity-55"}`}
+                  >
+                    {isWinner && (
+                      <span className="absolute -top-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-amber-400/70 bg-[#231307] px-2 py-0.5 font-serif text-[9px] font-black uppercase tracking-[0.14em] text-amber-200 shadow-[0_0_10px_rgba(251,191,36,0.45)]">
+                        Winner
+                      </span>
+                    )}
+                    <div
+                      className={`relative h-32 w-32 overflow-hidden rounded-full bg-transparent transition ${
+                        p.alive ? "" : "grayscale contrast-75 brightness-50"
+                      }`}
+                    >
+                      {p.avatar ? (
+                        <AvatarMedia
+                          avatar={p.avatar}
+                          sizes="128px"
+                          className="object-cover object-top"
+                          alt={p.name}
+                        />
+                      ) : (
+                        <span
+                          className="flex h-full w-full items-center justify-center text-4xl font-black text-grey-950"
+                          style={{ backgroundColor: p.color }}
+                        >
+                          {p.name.slice(0, 1).toUpperCase() || "?"}
+                        </span>
+                      )}
+                      {!p.alive && (
+                        <span
+                          aria-label={`${p.name} was eliminated`}
+                          className="absolute inset-0 z-30 block"
+                        >
+                          <span className="absolute left-1/2 top-1/2 h-[7px] w-[125%] -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full border border-grey-950 bg-grey-300/85 shadow-[0_0_4px_#000]" />
+                          <span className="absolute left-1/2 top-1/2 h-[7px] w-[125%] -translate-x-1/2 -translate-y-1/2 -rotate-45 rounded-full border border-grey-950 bg-grey-300/85 shadow-[0_0_4px_#000]" />
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      className={`truncate text-[11px] font-semibold ${
+                        p.alive ? "text-grey-200" : "text-grey-500 line-through"
+                      }`}
+                    >
+                      {p.name}
+                    </p>
+                    {p.role && (
+                      <p className="font-serif text-[10px] font-bold uppercase tracking-[0.12em] text-amber-300/80">
+                        {ROLES[p.role].label}
+                      </p>
+                    )}
+                    {deathDetail && (
+                      <p className="max-w-[150px] text-center font-serif text-[9px] leading-tight text-grey-500">
+                        {deathDetail}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             {view.isHost ? (
-              <div className="mt-1 flex justify-center gap-3">
-                <PrimaryButton onClick={o.playAgain}>Play again</PrimaryButton>
+              <div className="mt-1 flex flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={o.playAgain}
+                  aria-label="Play again"
+                  className="relative aspect-[3/1] w-48 transition hover:scale-105 hover:brightness-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                >
+                  <Image
+                    src="/werewolf-game/system/play-again-button.png"
+                    alt="Play again"
+                    fill
+                    sizes="192px"
+                    className="object-contain"
+                  />
+                </button>
                 <button
                   type="button"
                   onClick={o.newPlayers}
-                  className="rounded-sm border border-amber-900/50 bg-black/35 px-7 py-3 font-serif text-text-md font-semibold text-[#dfcfaf] transition-colors hover:border-amber-600/70 hover:bg-amber-950/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                  aria-label="Back to lobby"
+                  className="relative aspect-[3/1] w-48 transition hover:scale-105 hover:brightness-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
                 >
-                  Back to lobby
+                  <Image
+                    src="/werewolf-game/system/back-to-lobby-button.png"
+                    alt="Back to lobby"
+                    fill
+                    sizes="192px"
+                    className="object-contain"
+                  />
                 </button>
               </div>
             ) : (
@@ -1622,8 +1958,23 @@ export function WerewolfOnline({ code }: { code?: string }) {
                 Waiting for the host to start a new game…
               </p>
             )}
+            <button
+              type="button"
+              onClick={o.leaveRoom}
+              aria-label="Quit room"
+              className="relative aspect-[3/1] w-48 transition hover:scale-105 hover:brightness-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+            >
+              <Image
+                src="/werewolf-game/system/quite-room-button.png"
+                alt="Quit room"
+                fill
+                sizes="192px"
+                className="object-contain"
+              />
+            </button>
           </div>
         );
+      }
 
       default:
         return null;
@@ -1631,7 +1982,20 @@ export function WerewolfOnline({ code }: { code?: string }) {
   }
 
   return (
-    <Shell backdrop={BACKDROP[view.phase]}>
+    <Shell
+      backdrop={BACKDROP[view.phase]}
+      extraWide={[
+        "day-discuss",
+        "day-vote",
+        "night-wolf",
+        "night-seer",
+        "night-doctor",
+        "hunter-revenge",
+        "dawn",
+        "day-result",
+        "over",
+      ].includes(view.phase)}
+    >
       <header
         className={`werewolf-phase-header flex items-center justify-center gap-3 text-center ${isNight ? "werewolf-phase-header--night" : "werewolf-phase-header--day"}`}
       >
@@ -1665,7 +2029,7 @@ export function WerewolfOnline({ code }: { code?: string }) {
         <GameLogPanel entries={view.gameLog} />
       </div>
 
-      {view.wolfChat !== null && (
+      {view.wolfChat !== null && view.phase !== "day-discuss" && (
         <div className="mx-auto w-full max-w-sm lg:fixed lg:right-6 lg:top-40 lg:w-[220px]">
           <ChatPanel entries={view.wolfChat} onSend={o.sendWolfChat} title="Wolf Den" />
         </div>
@@ -1676,7 +2040,9 @@ export function WerewolfOnline({ code }: { code?: string }) {
         initial={reduced ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex flex-1 flex-col justify-center"
+        className={`flex flex-1 flex-col justify-center ${
+          showingResultReveal ? "fixed inset-0 z-50" : ""
+        }`}
       >
         {renderStage()}
       </motion.div>

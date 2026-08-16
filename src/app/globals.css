@@ -785,6 +785,121 @@
   animation: werewolf-avatar-sun-pulse 1.15s ease-out infinite;
 }
 
+@keyframes werewolf-kill-impact {
+  0% { transform: scale(0.82) rotate(-3deg); filter: brightness(2.4) saturate(0.4); }
+  16% { transform: translateX(-7px) rotate(-4deg) scale(1.06); }
+  30% { transform: translateX(6px) rotate(3deg) scale(1.02); filter: brightness(0.7) saturate(1.9); }
+  46% { transform: translateX(-3px) rotate(-1deg); }
+  68% { transform: translateX(2px); }
+  100% { transform: none; filter: brightness(0.82) saturate(0.8); }
+}
+
+@keyframes werewolf-kill-slash {
+  0%, 10% { opacity: 0; transform: translate(-55%, -50%) rotate(-28deg) scaleX(0); }
+  22% { opacity: 1; transform: translate(-50%, -50%) rotate(-28deg) scaleX(1); }
+  62% { opacity: 0.78; }
+  100% { opacity: 0; transform: translate(-45%, -50%) rotate(-28deg) scaleX(1.15); }
+}
+
+@keyframes werewolf-kill-aura {
+  0% { opacity: 0.95; transform: scale(0.55); }
+  70% { opacity: 0.3; }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+.werewolf-kill-reveal {
+  animation: werewolf-kill-impact 1600ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+.werewolf-kill-reveal::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 40;
+  width: 155%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #ffdfc4 15%, #ff3027 42%, #7a0906 82%, transparent);
+  box-shadow:
+    0 -18px 0 -1px rgba(255, 56, 45, 0.95),
+    0 18px 0 -1px rgba(151, 13, 9, 0.95),
+    0 0 7px #ff3329,
+    0 -18px 10px rgba(255, 42, 34, 0.72),
+    0 18px 10px rgba(166, 17, 12, 0.7),
+    0 0 22px rgba(211, 20, 15, 0.95);
+  transform-origin: center;
+  animation: werewolf-kill-slash 1500ms ease-out both;
+}
+
+.werewolf-kill-reveal::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  z-index: 35;
+  border: 3px solid rgba(239, 52, 43, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 0 18px 7px rgba(194, 25, 18, 0.7);
+  animation: werewolf-kill-aura 1.75s ease-out 180ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .werewolf-kill-reveal,
+  .werewolf-kill-reveal::before,
+  .werewolf-kill-reveal::after {
+    animation: none;
+  }
+}
+
+@keyframes werewolf-winner-frame-pulse {
+  0%, 100% { transform: translateY(0) scale(1); filter: brightness(1); }
+  50% { transform: translateY(-3px) scale(1.025); filter: brightness(1.28); }
+}
+
+@keyframes werewolf-winner-sparks {
+  0% { opacity: 0; transform: translateY(16px) rotate(0deg) scale(0.55); }
+  20% { opacity: 1; }
+  75% { opacity: 0.8; }
+  100% { opacity: 0; transform: translateY(-34px) rotate(150deg) scale(1.15); }
+}
+
+.werewolf-winner-celebrate {
+  --winner-glow: rgba(251, 191, 36, 0.8);
+  --winner-spark: #fde68a;
+  isolation: isolate;
+  animation: werewolf-winner-frame-pulse 1.8s ease-in-out infinite;
+}
+
+.werewolf-winner-celebrate--wolf {
+  --winner-glow: rgba(239, 68, 68, 0.85);
+  --winner-spark: #fca5a5;
+}
+
+.werewolf-winner-celebrate::before,
+.werewolf-winner-celebrate::after {
+  content: "✦";
+  position: absolute;
+  z-index: 35;
+  bottom: 6%;
+  color: var(--winner-spark);
+  font-size: 18px;
+  line-height: 1;
+  text-shadow: 0 0 6px var(--winner-glow), 0 0 14px var(--winner-glow);
+  pointer-events: none;
+  animation: werewolf-winner-sparks 1.45s ease-out infinite;
+}
+
+.werewolf-winner-celebrate::before { left: 8%; }
+.werewolf-winner-celebrate::after { right: 8%; animation-delay: 0.55s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .werewolf-winner-celebrate,
+  .werewolf-winner-celebrate::before,
+  .werewolf-winner-celebrate::after {
+    animation: none;
+  }
+}
+
 
 .werewolf-wolf-frame {
   border-style: solid;
@@ -864,7 +979,7 @@
 }
 .werewolf-stage-kicker {
   font-family: var(--font-serif);
-  font-size: 11px;
+  font-size: clamp(14px, 1.4vw, 18px);
   font-weight: 800;
   letter-spacing: 0.22em;
   line-height: 1.35;

@@ -108,6 +108,11 @@ export function WerewolfRoomList() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState(presetCode ?? "");
   const [modalMode, setModalMode] = useState<"create" | "join" | null>(presetCode ? "join" : null);
+  const [pendingDeleteRoom, setPendingDeleteRoom] = useState<{
+    code: string;
+    roomName: string;
+  } | null>(null);
+  const [deletingRoom, setDeletingRoom] = useState(false);
   const trimmedRoomName = roomName.trim();
   const trimmedName = name.trim();
   const canCreate = Boolean(trimmedRoomName && trimmedName && avatar);
@@ -280,12 +285,9 @@ export function WerewolfRoomList() {
                         {room.phase === "lobby" && (
                           <button
                             type="button"
-                            onClick={async () => {
-                              if (window.confirm(`Delete "${room.roomName}"?`)) {
-                                const deleted = await o.deleteOpenRoom(room.code);
-                                if (deleted) await refreshMyRooms();
-                              }
-                            }}
+                            onClick={() =>
+                              setPendingDeleteRoom({ code: room.code, roomName: room.roomName })
+                            }
                             aria-label={`Delete ${room.roomName}`}
                             className="shrink-0 px-1 text-grey-500 transition-colors hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
                           >
@@ -328,6 +330,74 @@ export function WerewolfRoomList() {
           </p>
         )}
       </div>
+
+      {pendingDeleteRoom && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="room-list-delete-title"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={() => !deletingRoom && setPendingDeleteRoom(null)}
+        >
+          <div
+            className="relative w-full max-w-md overflow-hidden rounded-[20px] border-2 border-amber-500/75 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,0.18),transparent_35%),radial-gradient(circle_at_50%_100%,rgba(185,28,28,0.3),transparent_46%),linear-gradient(145deg,#100b08,#030304_58%,#180405)] px-8 py-8 text-center shadow-[inset_0_0_0_2px_#080202,inset_0_0_0_4px_rgba(153,27,27,0.28),0_24px_70px_rgba(0,0,0,0.85)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className="pointer-events-none absolute inset-3 rounded-[13px] border border-red-900/65" />
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-400">
+              Leave the circle?
+            </p>
+            <h2
+              id="room-list-delete-title"
+              className="mt-2 font-serif text-xl font-black text-[#f0ddb7]"
+            >
+              Delete {pendingDeleteRoom.roomName}?
+            </h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-grey-400">
+              Everyone will be removed and this gathering cannot be resumed.
+            </p>
+            <div className="relative z-10 mt-6 flex justify-center gap-3">
+              <button
+                type="button"
+                disabled={deletingRoom}
+                onClick={() => setPendingDeleteRoom(null)}
+                aria-label="Stay"
+                className="relative aspect-[3/1] w-44 transition enabled:hover:scale-105 enabled:hover:brightness-125 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+              >
+                <Image
+                  src="/werewolf-game/system/stay-button.png"
+                  alt="Stay"
+                  fill
+                  sizes="176px"
+                  className="object-contain"
+                />
+              </button>
+              <button
+                type="button"
+                disabled={deletingRoom}
+                aria-label="Delete room"
+                onClick={async () => {
+                  const room = pendingDeleteRoom;
+                  setDeletingRoom(true);
+                  const deleted = await o.deleteOpenRoom(room.code);
+                  if (deleted) await refreshMyRooms();
+                  setDeletingRoom(false);
+                  if (deleted) setPendingDeleteRoom(null);
+                }}
+                className="relative aspect-[3/1] w-44 transition enabled:hover:scale-105 enabled:hover:brightness-125 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+              >
+                <Image
+                  src="/werewolf-game/system/delete-room-button.png"
+                  alt="Delete room"
+                  fill
+                  sizes="176px"
+                  className="object-contain"
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modalMode && (
         <div
@@ -448,9 +518,33 @@ export function WerewolfRoomList() {
                   type="button"
                   disabled={o.busy || (modalMode === "create" ? !canCreate : !canJoinByCode)}
                   onClick={handleConfirm}
-                  className="werewolf-create-dialog-action mt-2 w-full bg-gradient-to-b from-[#761f1b] via-[#4b100e] to-[#250706] px-5 py-3 font-serif text-text-md font-black uppercase tracking-[0.14em] text-[#dfc6a4] transition enabled:hover:scale-[1.02] enabled:hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 sm:py-4"
+                  aria-label={modalMode === "create" ? "Create room" : "Join room"}
+                  className={
+                    modalMode === "create"
+                      ? "relative mt-2 aspect-[2112/744] w-full transition enabled:hover:scale-[1.02] enabled:hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                      : "werewolf-create-dialog-action mt-2 w-full bg-gradient-to-b from-[#761f1b] via-[#4b100e] to-[#250706] px-5 py-3 font-serif text-text-md font-black uppercase tracking-[0.14em] text-[#dfc6a4] transition enabled:hover:scale-[1.02] enabled:hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 sm:py-4"
+                  }
                 >
-                  {o.busy ? "…" : modalMode === "create" ? "Create room" : "Join room"}
+                  {modalMode === "create" ? (
+                    <>
+                      <Image
+                        src="/werewolf-game/system/create-room-button.png"
+                        alt="Create room"
+                        fill
+                        sizes="320px"
+                        className="object-contain"
+                      />
+                      {o.busy && (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/35 font-serif text-xl font-black text-amber-100">
+                          …
+                        </span>
+                      )}
+                    </>
+                  ) : o.busy ? (
+                    "…"
+                  ) : (
+                    "Join room"
+                  )}
                 </button>
 
                 {modalMode === "join" && o.error === "This game has already started." && (

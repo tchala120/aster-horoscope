@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { AvatarMedia } from "./AvatarMedia";
 
 /** Minimal shape PlayerSeat needs — satisfied by the online PublicPlayer. */
 export interface SeatLike {
@@ -19,13 +20,7 @@ export function PlayerToken({ player, size = 40 }: { player: SeatLike; size?: nu
         className="relative shrink-0 overflow-hidden rounded-full ring-2"
         style={{ width: size, height: size, borderColor: player.color }}
       >
-        <Image
-          src={player.avatar}
-          alt=""
-          fill
-          sizes={`${size}px`}
-          className="object-cover object-top"
-        />
+        <AvatarMedia avatar={player.avatar} sizes={`${size}px`} />
       </span>
     );
   }
@@ -100,16 +95,51 @@ export function PlayerPickGrid({
   selectedId?: string | null;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {players.map((p) => (
-        <PlayerSeat
-          key={p.id}
-          player={p}
-          onClick={() => onPick(p.id)}
-          disabled={disabled}
-          selected={p.id === selectedId}
-        />
-      ))}
+    <div className="mx-auto flex w-full max-w-[867px] flex-wrap justify-center gap-1 sm:gap-2">
+      {players.map((p) => {
+        const selected = p.id === selectedId;
+        return (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onPick(p.id)}
+            disabled={disabled}
+            aria-pressed={selected}
+            className={`group relative flex aspect-[1082/1454] w-[117px] max-w-[calc(20%-0.4rem)] min-w-0 flex-col items-center justify-center bg-black/40 px-[12%] py-[13%] shadow-[0_4px_12px_rgba(0,0,0,0.45)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:max-w-[117px] ${
+              selected ? "scale-[1.04] brightness-125" : "hover:scale-[1.03] hover:brightness-110"
+            }`}
+          >
+            <Image
+              src="/werewolf-game/system/select-avatar-frame.png"
+              alt=""
+              fill
+              sizes="117px"
+              className="pointer-events-none z-10 object-fill"
+            />
+            <span
+              className={`absolute left-1/2 top-[17%] z-20 aspect-square w-[56%] -translate-x-1/2 overflow-hidden rounded-full border bg-grey-950 ${
+                selected
+                  ? "border-red-400 shadow-[0_0_16px_rgba(239,68,68,0.85)]"
+                  : "border-amber-500/80 shadow-[0_0_0_2px_#0a0806]"
+              }`}
+            >
+              {p.avatar ? (
+                <AvatarMedia avatar={p.avatar} sizes="72px" className="object-cover object-top" />
+              ) : (
+                <span
+                  className="flex h-full w-full items-center justify-center font-bold text-grey-950"
+                  style={{ backgroundColor: p.color }}
+                >
+                  {p.name.slice(0, 1).toUpperCase() || "?"}
+                </span>
+              )}
+            </span>
+            <span className="absolute bottom-[18%] left-1/2 z-20 w-[72%] -translate-x-1/2 truncate text-center font-serif text-[10px] font-bold text-[#ead9b6]">
+              {p.name}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

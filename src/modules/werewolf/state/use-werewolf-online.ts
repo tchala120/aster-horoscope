@@ -318,6 +318,7 @@ export function useWerewolfOnline(initialCode?: string) {
     sendChat: (text: string) => act({ type: "chat", text }),
     sendWolfChat: (text: string) => act({ type: "wolf-chat", text }),
     kickPlayer: (playerId: string) => act({ type: "kick", playerId }),
+    addBot: () => act({ type: "add-bot" }),
     updateSettings: (settings: Partial<RoomSettings>) => act({ type: "update-settings", settings }),
   };
 }

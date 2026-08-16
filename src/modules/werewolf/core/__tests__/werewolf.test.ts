@@ -17,6 +17,14 @@ describe("Werewolf role allocation", () => {
     expect(roleCounts(assignRoles(10, () => 0.5))).toEqual(expected);
   });
 
+  it("supports a balanced full 15-player room", () => {
+    const expected = { villager: 8, werewolf: 4, seer: 1, doctor: 1, hunter: 1 };
+
+    expect(rolePoolFor(15)).toHaveLength(15);
+    expect(roleCounts(rolePoolFor(15))).toEqual(expected);
+    expect(roleCounts(assignRoles(15, () => 0.5))).toEqual(expected);
+  });
+
   it("preserves the existing smaller-room compositions", () => {
     expect(roleCounts(rolePoolFor(5))).toEqual({
       villager: 1,

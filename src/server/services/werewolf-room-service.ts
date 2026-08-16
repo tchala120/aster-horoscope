@@ -549,6 +549,40 @@ function applyKick(state: RoomState, token: string, playerId: string): RoomState
   );
 }
 
+function applyAddBot(state: RoomState, token: string): RoomState {
+  requireHost(state, token);
+  if (state.phase !== "lobby") {
+    throw serviceError("WEREWOLF_BAD_PHASE", "Bots can only be added in the lobby.", 409);
+  }
+  if (state.players.length >= MAX_PLAYERS) {
+    throw serviceError("WEREWOLF_FULL", "This room is full.", 409);
+  }
+  const usedBotNumbers = new Set(
+    state.players
+      .filter((player) => player.isBot)
+      .map((player) => Number(player.name.match(/^Bot (\d+)$/)?.[1] ?? 0)),
+  );
+  let botNumber = 1;
+  while (usedBotNumbers.has(botNumber)) botNumber += 1;
+  const name = `Bot ${botNumber}`;
+  const bot: RoomPlayer = {
+    id: randomUUID(),
+    token: `bot:${randomUUID()}`,
+    name,
+    color: TOKENS[state.players.length % TOKENS.length],
+    avatar: AVATARS[state.players.length % AVATARS.length],
+    ready: true,
+    role: null,
+    alive: true,
+    joinedAt: new Date().toISOString(),
+    isBot: true,
+  };
+  return appendChat(
+    { ...state, players: [...state.players, bot], message: `${name} joined the village.` },
+    { kind: "system", name: null, color: null, text: `${name} was summoned.` },
+  );
+}
+
 function applyTransition(state: RoomState, token: string, action: WerewolfAction): RoomState {
   switch (action.type) {
     case "set-ready":
@@ -583,11 +617,64 @@ function applyTransition(state: RoomState, token: string, action: WerewolfAction
       return applyWolfChat(state, token, action.text);
     case "kick":
       return applyKick(state, token, action.playerId);
+    case "add-bot":
+      return applyAddBot(state, token);
     case "update-settings":
       return applyUpdateSettings(state, token, action.settings);
     default:
       throw serviceError("WEREWOLF_VALIDATION", "Unknown action.", 400);
   }
+}
+
+/** Runs every immediately actionable bot turn. Public discussion/result phases still wait for
+ * a human/host, while private role turns and ballots cannot be blocked by bot seats. */
+function settleBotActions(initial: RoomState): RoomState {
+  let state = initial;
+  for (let step = 0; step < 64; step += 1) {
+    const before = state;
+    const alive = state.players.filter((player) => player.alive);
+    const transition = (bot: RoomPlayer, action: WerewolfAction) => {
+      const next = applyTransition(state, bot.token, action);
+      state =
+        next.phase !== state.phase ? { ...next, phaseStartedAt: new Date().toISOString() } : next;
+    };
+
+    if (state.phase === "night-wolf") {
+      const bot = alive.find((player) => player.isBot && player.role === "werewolf");
+      const target = alive.find((player) => player.role !== "werewolf");
+      if (bot && target) transition(bot, { type: "wolf-target", targetId: target.id });
+    } else if (state.phase === "night-seer") {
+      const bot = alive.find((player) => player.isBot && player.role === "seer");
+      if (bot && !state.seerTargetId) {
+        const target = alive.find((player) => player.id !== bot.id);
+        if (target) transition(bot, { type: "seer-target", targetId: target.id });
+      } else if (bot && state.seerTargetId) {
+        transition(bot, { type: "seer-continue" });
+      }
+    } else if (state.phase === "night-doctor") {
+      const bot = alive.find((player) => player.isBot && player.role === "doctor");
+      const target = alive.find((player) => player.id !== state.doctorLastProtectId);
+      if (bot && target) transition(bot, { type: "doctor-target", targetId: target.id });
+    } else if (state.phase === "hunter-revenge") {
+      const bot = state.players.find(
+        (player) => player.isBot && player.id === state.hunterRevengeFor,
+      );
+      const target = alive.find((player) => player.id !== bot?.id);
+      if (bot && target) transition(bot, { type: "hunter-target", targetId: target.id });
+    } else if (state.phase === "day-vote") {
+      const bot = alive.find((player) => player.isBot && state.votes[player.id] === undefined);
+      const target = alive.find((player) => player.id !== bot?.id);
+      if (bot && target) transition(bot, { type: "vote", targetId: target.id });
+    } else if (state.phase === "day-runoff") {
+      const bot = alive.find(
+        (player) => player.isBot && state.runoffVotes[player.id] === undefined,
+      );
+      if (bot) transition(bot, { type: "runoff-vote", vote: bot.id.length % 2 === 0 });
+    }
+
+    if (state === before) break;
+  }
+  return state;
 }
 
 // ---- Redaction: the per-viewer public snapshot sent over HTTP ----
@@ -631,6 +718,7 @@ function toPublicRoom(state: RoomState, viewerToken: string): PublicRoom {
       isYou: p.token === viewerToken,
       isHost: p.token === state.hostToken,
       ready: Boolean(p.ready),
+      isBot: Boolean(p.isBot),
     };
   });
 
@@ -913,6 +1001,11 @@ export async function getRoomView(code: string, token: string): Promise<PublicRo
     state = { ...resolveNightState(state), phaseStartedAt: new Date().toISOString() };
     await werewolfRoomRepo.save(state);
   }
+  const settled = settleBotActions(state);
+  if (settled !== state) {
+    state = settled;
+    await werewolfRoomRepo.save(state);
+  }
   return toPublicRoom(state, token);
 }
 
@@ -1009,10 +1102,11 @@ export async function applyRoomAction(
   const state = await loadRoom(code);
   requirePlayer(state, token);
   const transitioned = applyTransition(state, token, action);
-  const next =
+  const phased =
     transitioned.phase !== state.phase
       ? { ...transitioned, phaseStartedAt: new Date().toISOString() }
       : transitioned;
+  const next = settleBotActions(phased);
   await werewolfRoomRepo.save(next);
   return toPublicRoom(next, token);
 }
